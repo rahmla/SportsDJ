@@ -73,14 +73,18 @@ struct ContentView: View {
                 }
 
                 ToolbarItem(placement: .primaryAction) {
-                    Picker("Mode", selection: $mode) {
-                        Label("Play", systemImage: "play.fill").tag(AppMode.performance)
-                        Label("Edit", systemImage: "pencil").tag(AppMode.edit)
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(width: 110)
-                    .onChange(of: mode) { _, newMode in
-                        if newMode == .performance { audio.stop() }
+                    if mode == .edit {
+                        Button("Done") {
+                            audio.stop()
+                            mode = .performance
+                        }
+                        .fontWeight(.semibold)
+                    } else {
+                        Button {
+                            mode = .edit
+                        } label: {
+                            Label("Edit", systemImage: "pencil")
+                        }
                     }
                 }
             }

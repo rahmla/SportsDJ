@@ -38,9 +38,9 @@ struct EditView: View {
                 #if os(iOS)
                 HStack {
                     Image(systemName: audio.spotify.isConnected ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(audio.spotify.isConnected ? .green : .secondary)
+                        .foregroundStyle(audio.spotify.isConnected ? Color.green : Color.secondary)
                     Text(audio.spotify.isConnected ? "Connected" : "Not connected")
-                        .foregroundStyle(audio.spotify.isConnected ? .primary : .secondary)
+                        .foregroundStyle(audio.spotify.isConnected ? Color.primary : Color.secondary)
                     Spacer()
                     if audio.spotify.isConnected {
                         Button("Disconnect", role: .destructive) {
@@ -48,7 +48,12 @@ struct EditView: View {
                         }
                     } else {
                         Button("Connect to Spotify") {
-                            audio.spotify.authorize()
+                            let spotifyURL = URL(string: "spotify://")!
+                            if UIApplication.shared.canOpenURL(spotifyURL) {
+                                audio.spotify.authorize()
+                            } else {
+                                audio.spotify.connectionError = "Spotify app is not installed. Please install Spotify first."
+                            }
                         }
                     }
                 }
@@ -57,10 +62,6 @@ struct EditView: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
-                #else
-                Text("Spotify playback is available on iPad/iPhone only.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
                 #endif
             }
 
