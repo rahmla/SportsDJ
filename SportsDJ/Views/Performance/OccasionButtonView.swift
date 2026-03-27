@@ -49,7 +49,7 @@ struct OccasionButtonView: View {
                 }
             }
         }
-        .aspectRatio(1.8, contentMode: .fit)
+        .aspectRatio(1.4, contentMode: .fit)
         .buttonStyle(.plain)
         .scaleEffect(isPressed ? 0.93 : 1.0)
         .animation(.spring(response: 0.2), value: isPressed)

@@ -5,19 +5,21 @@ struct PerformanceView: View {
     @Environment(AudioPlaybackManager.self) private var audio
 
     private let occasionColumns = [
-        GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
+        GridItem(.flexible(), spacing: 8),
     ]
 
     var body: some View {
         VStack(spacing: 16) {
             // Occasion buttons — top grid
-            LazyVGrid(columns: occasionColumns, spacing: 12) {
+            LazyVGrid(columns: occasionColumns, spacing: 8) {
                 ForEach(profile.occasionButtons) { button in
                     OccasionButtonView(button: button)
                 }
             }
-            .padding(.horizontal)
+            .padding(.horizontal, 8)
 
             // Stop + Waiting For Game row
             HStack(spacing: 12) {
