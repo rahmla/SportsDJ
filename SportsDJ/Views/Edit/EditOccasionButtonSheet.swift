@@ -81,8 +81,6 @@ struct EditOccasionButtonSheet: View {
                         }
 
                         if audioMode == .spotify {
-                            TextField("Track name", text: $spotifyName)
-                                .textFieldStyle(.roundedBorder)
                             TextField("Spotify URI  (spotify:track:…)", text: $spotifyURI)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.caption.monospaced())
@@ -153,7 +151,7 @@ struct EditOccasionButtonSheet: View {
         case .spotify:
             result.audioSource = spotifyURI.isEmpty
                 ? nil
-                : .spotifyTrack(uri: spotifyURI, trackName: spotifyName.isEmpty ? spotifyURI : spotifyName)
+                : .spotifyTrack(uri: spotifyURI, trackName: spotifyURI)
         }
         onSave(result)
         dismiss()
