@@ -17,6 +17,8 @@ struct SportProfile: Codable, Identifiable, Hashable {
             OccasionButton(label: "RALLY", colorHex: "#007A00"),  // green
             OccasionButton(label: "DIG",   colorHex: "#CC5500"),  // orange
             OccasionButton(label: "TIME",  colorHex: "#007A7A"),  // teal
+            OccasionButton(label: "DRAMA", colorHex: "#7700BB"),  // violet
+            OccasionButton(label: "WAIT",  colorHex: "#885500"),  // brown
         ],
         songs: [],
         waitingForGameSource: nil
