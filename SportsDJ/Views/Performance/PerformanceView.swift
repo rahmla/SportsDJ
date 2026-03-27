@@ -12,7 +12,7 @@ struct PerformanceView: View {
     ]
 
     var body: some View {
-        VStack(spacing: 16) {
+        VStack(alignment: .leading, spacing: 16) {
             // Occasion buttons — top grid
             LazyVGrid(columns: occasionColumns, spacing: 8) {
                 ForEach(profile.occasionButtons) { button in
@@ -36,7 +36,10 @@ struct PerformanceView: View {
 
             // Songs — scrollable list
             SongListView(songs: profile.songs)
+
+            Spacer()
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .padding(.top, 12)
     }
 }
