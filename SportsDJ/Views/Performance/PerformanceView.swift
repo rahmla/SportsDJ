@@ -7,7 +7,6 @@ struct PerformanceView: View {
     private let occasionColumns = [
         GridItem(.flexible(), spacing: 12),
         GridItem(.flexible(), spacing: 12),
-        GridItem(.flexible(), spacing: 12),
     ]
 
     var body: some View {

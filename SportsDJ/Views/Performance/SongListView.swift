@@ -8,7 +8,6 @@ struct SongListView: View {
     private let columns = [
         GridItem(.flexible(), spacing: 8),
         GridItem(.flexible(), spacing: 8),
-        GridItem(.flexible(), spacing: 8),
     ]
 
     var body: some View {
