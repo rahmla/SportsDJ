@@ -7,7 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		BB7BF0DC2F76A58B0084BC6B /* SpotifyiOS in Frameworks */ = {isa = PBXBuildFile; productRef = BB7BF0DB2F76A58B0084BC6B /* SpotifyiOS */; };
+		BB7BF0DC2F76A58B0084BC6B /* SpotifyiOS in Frameworks */ = {isa = PBXBuildFile; platformFilter = ios; productRef = BB7BF0DB2F76A58B0084BC6B /* SpotifyiOS */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */

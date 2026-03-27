@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct EditView: View {
     @Binding var profile: SportProfile
     @Environment(ProfileStore.self) private var store
+    @Environment(AudioPlaybackManager.self) private var audio
 
     @State private var selectedButton: OccasionButton?
     @State private var selectedSong: SongItem?
@@ -31,6 +32,37 @@ struct EditView: View {
                     TextField("Sport", text: $profile.sport)
                         .multilineTextAlignment(.trailing)
                 }
+            }
+
+            // Spotify
+            Section("Spotify") {
+                #if os(iOS)
+                HStack {
+                    Image(systemName: audio.spotify.isConnected ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(audio.spotify.isConnected ? .green : .secondary)
+                    Text(audio.spotify.isConnected ? "Connected" : "Not connected")
+                        .foregroundStyle(audio.spotify.isConnected ? .primary : .secondary)
+                    Spacer()
+                    if audio.spotify.isConnected {
+                        Button("Disconnect", role: .destructive) {
+                            audio.spotify.disconnect()
+                        }
+                    } else {
+                        Button("Connect to Spotify") {
+                            audio.spotify.authorize()
+                        }
+                    }
+                }
+                if let error = audio.spotify.connectionError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+                #else
+                Text("Spotify playback is available on iPad/iPhone only.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                #endif
             }
 
             // Waiting for game
