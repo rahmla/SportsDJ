@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		BB7BF0DC2F76A58B0084BC6B /* SpotifyiOS in Frameworks */ = {isa = PBXBuildFile; productRef = BB7BF0DB2F76A58B0084BC6B /* SpotifyiOS */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		BBE162E02F75D72C00E2B55E /* SportsDJ.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SportsDJ.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB7BF0DC2F76A58B0084BC6B /* SpotifyiOS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = SportsDJ;
 			packageProductDependencies = (
+				BB7BF0DB2F76A58B0084BC6B /* SpotifyiOS */,
 			);
 			productName = SportsDJ;
 			productReference = BBE162E02F75D72C00E2B55E /* SportsDJ.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = BBE162D72F75D72C00E2B55E;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				BB7BF0DA2F76A58B0084BC6B /* XCRemoteSwiftPackageReference "ios-sdk" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BBE162E12F75D72C00E2B55E /* Products */;
 			projectDirPath = "";
@@ -383,6 +392,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		BB7BF0DA2F76A58B0084BC6B /* XCRemoteSwiftPackageReference "ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/spotify/ios-sdk";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		BB7BF0DB2F76A58B0084BC6B /* SpotifyiOS */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB7BF0DA2F76A58B0084BC6B /* XCRemoteSwiftPackageReference "ios-sdk" */;
+			productName = SpotifyiOS;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BBE162D82F75D72C00E2B55E /* Project object */;
 }
