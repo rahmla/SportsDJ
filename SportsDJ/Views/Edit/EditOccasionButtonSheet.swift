@@ -21,7 +21,7 @@ struct EditOccasionButtonSheet: View {
     init(button: OccasionButton, onSave: @escaping (OccasionButton) -> Void) {
         self.onSave = onSave
         _edited = State(initialValue: button)
-        _selectedColor = State(initialValue: button.color)
+        _selectedColor = State(initialValue: Color(hex: button.colorHex) ?? .blue)
         switch button.audioSource {
         case .localFile:
             _audioMode = State(initialValue: .localFile)

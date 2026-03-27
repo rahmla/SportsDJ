@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 
 struct SportProfile: Codable, Identifiable, Hashable {
     var id: UUID = UUID()
@@ -31,10 +30,6 @@ struct OccasionButton: Codable, Identifiable, Hashable {
     var colorHex: String
     var audioSource: AudioSource?
     var startOffset: Double = 0
-
-    var color: Color {
-        Color(hex: colorHex) ?? .blue
-    }
 
     // Custom decoding so startOffset defaults to 0 in older saved profiles
     enum CodingKeys: String, CodingKey {

@@ -80,7 +80,7 @@ struct EditView: View {
                     Button { selectedButton = button } label: {
                         HStack(spacing: 12) {
                             RoundedRectangle(cornerRadius: 6)
-                                .fill(button.color)
+                                .fill(Color(hex: button.colorHex) ?? .blue)
                                 .frame(width: 28, height: 28)
 
                             Text(button.label)

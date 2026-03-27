@@ -19,9 +19,9 @@ struct OccasionButtonView: View {
         } label: {
             ZStack {
                 RoundedRectangle(cornerRadius: 18)
-                    .fill(button.color)
+                    .fill(Color(hex: button.colorHex) ?? .blue)
                     .opacity(hasAudio ? 1.0 : 0.35)
-                    .shadow(color: button.color.opacity(0.5), radius: isPlaying ? 10 : 4, y: 3)
+                    .shadow(color: (Color(hex: button.colorHex) ?? .blue).opacity(0.5), radius: isPlaying ? 10 : 4, y: 3)
 
                 VStack(spacing: 6) {
                     Text(button.label)
