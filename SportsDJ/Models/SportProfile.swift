@@ -12,12 +12,12 @@ struct SportProfile: Codable, Identifiable, Hashable {
         name: "Volleyball",
         sport: "Volleyball",
         occasionButtons: [
+            OccasionButton(label: "ACE",   colorHex: "#7700BB"),  // violet
             OccasionButton(label: "BOOM",  colorHex: "#CC0000"),  // red
             OccasionButton(label: "BLOCK", colorHex: "#0044CC"),  // blue
-            OccasionButton(label: "RALLY", colorHex: "#007A00"),  // green
             OccasionButton(label: "DIG",   colorHex: "#CC5500"),  // orange
+            OccasionButton(label: "RALLY", colorHex: "#007A00"),  // green
             OccasionButton(label: "TIME",  colorHex: "#007A7A"),  // teal
-            OccasionButton(label: "ACE",   colorHex: "#7700BB"),  // violet
             OccasionButton(label: "DRAMA", colorHex: "#885500"),  // brown
             OccasionButton(label: "WAIT",  colorHex: "#556B2F"),  // dark olive
         ],
