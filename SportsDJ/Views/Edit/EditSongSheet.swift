@@ -2,13 +2,16 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct EditSongSheet: View {
+    let profileID: UUID
     let onSave: (SongItem) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(ProfileStore.self) private var store
     @State private var edited: SongItem
     @State private var audioMode: AudioMode = .none
     @State private var spotifyURI = ""
     @State private var showFilePicker = false
+    @State private var pendingFileURL: URL?
 
     private enum AudioMode: String, CaseIterable {
         case none      = "None"
@@ -16,7 +19,8 @@ struct EditSongSheet: View {
         case spotify   = "Spotify Track"
     }
 
-    init(song: SongItem, onSave: @escaping (SongItem) -> Void) {
+    init(song: SongItem, profileID: UUID, onSave: @escaping (SongItem) -> Void) {
+        self.profileID = profileID
         self.onSave = onSave
         _edited = State(initialValue: song)
         switch song.audioSource {
@@ -58,7 +62,10 @@ struct EditSongSheet: View {
 
                         if audioMode == .localFile {
                             Button("Select MP3 File") { showFilePicker = true }
-                            if case .localFile(_, let name) = edited.audioSource {
+                            if let url = pendingFileURL {
+                                Text(url.lastPathComponent)
+                                    .font(.caption).foregroundStyle(.secondary)
+                            } else if case .localFile(_, let name) = edited.audioSource {
                                 Text(name).font(.caption).foregroundStyle(.secondary)
                             }
                         }
@@ -73,7 +80,7 @@ struct EditSongSheet: View {
                     }
 
                     // Start offset
-                    if edited.audioSource != nil {
+                    if edited.audioSource != nil || pendingFileURL != nil {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Playback").font(.caption).foregroundStyle(.secondary)
                             HStack {
@@ -92,8 +99,7 @@ struct EditSongSheet: View {
                             }
                             if edited.startOffset < 0 {
                                 Text("Offset must be 0 or greater.")
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
+                                    .font(.caption).foregroundStyle(.red)
                             }
                         }
                     }
@@ -116,13 +122,8 @@ struct EditSongSheet: View {
         }
         .frame(minWidth: 380, minHeight: 320)
         .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.mp3]) { result in
-            guard let url = try? result.get() else { return }
-            let hasAccess = url.startAccessingSecurityScopedResource()
-            defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
-            if let bookmark = try? url.bookmarkData(options: []) {
-                edited.audioSource = .localFile(bookmarkData: bookmark, fileName: url.lastPathComponent)
-                audioMode = .localFile
-            }
+            pendingFileURL = try? result.get()
+            if pendingFileURL != nil { audioMode = .localFile }
         }
     }
 
@@ -132,7 +133,9 @@ struct EditSongSheet: View {
         case .none:
             result.audioSource = nil
         case .localFile:
-            break
+            if let url = pendingFileURL {
+                result.audioSource = store.copyAudioFile(from: url, profileID: profileID)
+            }
         case .spotify:
             result.audioSource = spotifyURI.isEmpty
                 ? nil

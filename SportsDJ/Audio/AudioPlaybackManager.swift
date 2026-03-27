@@ -10,7 +10,6 @@ final class AudioPlaybackManager: NSObject {
     let spotify = SpotifyManager()
 
     private var audioPlayer: AVAudioPlayer?
-    private var securityScopedURL: URL?
 
     // MARK: - Public API
 
@@ -19,8 +18,9 @@ final class AudioPlaybackManager: NSObject {
         currentSource = source
 
         switch source {
-        case .localFile(let bookmarkData, _):
-            playLocalFile(bookmarkData: bookmarkData, startOffset: startOffset)
+        case .localFile:
+            guard let url = source.resolvedLocalURL else { currentSource = nil; return }
+            playLocalFile(url: url, startOffset: startOffset)
         case .spotifyTrack(let uri, _):
             spotify.playTrack(uri: uri, startOffset: startOffset)
             isPlaying = true
@@ -31,43 +31,20 @@ final class AudioPlaybackManager: NSObject {
     }
 
     func stop() {
-        // Stop local audio
         audioPlayer?.stop()
         audioPlayer = nil
-        securityScopedURL?.stopAccessingSecurityScopedResource()
-        securityScopedURL = nil
-
-        // Stop Spotify
         spotify.pause()
-
         isPlaying = false
         currentSource = nil
     }
 
     // MARK: - Local file playback
 
-    private func playLocalFile(bookmarkData: Data, startOffset: Double = 0) {
-        var isStale = false
-        guard let url = try? URL(
-            resolvingBookmarkData: bookmarkData,
-            options: [],
-            relativeTo: nil,
-            bookmarkDataIsStale: &isStale
-        ) else {
-            currentSource = nil
-            return
-        }
-
-        let hasAccess = url.startAccessingSecurityScopedResource()
-        if hasAccess { securityScopedURL = url }
-
+    private func playLocalFile(url: URL, startOffset: Double = 0) {
         guard let player = try? AVAudioPlayer(contentsOf: url) else {
-            if hasAccess { url.stopAccessingSecurityScopedResource() }
-            securityScopedURL = nil
             currentSource = nil
             return
         }
-
         player.delegate = self
         audioPlayer = player
         if startOffset > 0 { player.currentTime = startOffset }
@@ -80,8 +57,6 @@ final class AudioPlaybackManager: NSObject {
 
 extension AudioPlaybackManager: AVAudioPlayerDelegate {
     func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        securityScopedURL?.stopAccessingSecurityScopedResource()
-        securityScopedURL = nil
         audioPlayer = nil
         isPlaying = false
         currentSource = nil

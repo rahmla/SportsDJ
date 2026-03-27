@@ -3,6 +3,9 @@ import UniformTypeIdentifiers
 
 struct WaitingForGameEditRow: View {
     @Binding var source: AudioSource?
+    let profileID: UUID
+
+    @Environment(ProfileStore.self) private var store
 
     @State private var mode: InputMode = .none
     @State private var playlistURI  = ""
@@ -15,8 +18,9 @@ struct WaitingForGameEditRow: View {
         case spotifyPlaylist = "Spotify Playlist"
     }
 
-    init(source: Binding<AudioSource?>) {
+    init(source: Binding<AudioSource?>, profileID: UUID) {
         _source = source
+        self.profileID = profileID
         switch source.wrappedValue {
         case .localFile:
             _mode = State(initialValue: .localFile)
@@ -30,7 +34,7 @@ struct WaitingForGameEditRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 8) {
             Picker("Source", selection: $mode) {
                 ForEach(InputMode.allCases, id: \.self) {
                     Text($0.rawValue).tag($0)
@@ -55,11 +59,10 @@ struct WaitingForGameEditRow: View {
                     .onChange(of: playlistURI) { _, _ in commitSource() }
             }
         }
-        .fileImporter(
-            isPresented: $showFilePicker,
-            allowedContentTypes: [.mp3],
-            onCompletion: handleFileImport
-        )
+        .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.mp3]) { result in
+            guard let url = try? result.get() else { return }
+            source = store.copyAudioFile(from: url, profileID: profileID)
+        }
     }
 
     private func commitSource() {
@@ -71,15 +74,6 @@ struct WaitingForGameEditRow: View {
         case .spotifyPlaylist:
             guard !playlistURI.isEmpty else { return }
             source = .spotifyPlaylist(uri: playlistURI, playlistName: playlistName)
-        }
-    }
-
-    private func handleFileImport(_ result: Result<URL, Error>) {
-        guard let url = try? result.get() else { return }
-        let hasAccess = url.startAccessingSecurityScopedResource()
-        defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
-        if let bookmark = try? url.bookmarkData(options: []) {
-            source = .localFile(bookmarkData: bookmark, fileName: url.lastPathComponent)
         }
     }
 }

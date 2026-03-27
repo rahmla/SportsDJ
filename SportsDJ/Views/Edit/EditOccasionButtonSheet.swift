@@ -2,15 +2,18 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct EditOccasionButtonSheet: View {
+    let profileID: UUID
     let onSave: (OccasionButton) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(ProfileStore.self) private var store
     @State private var edited: OccasionButton
     @State private var selectedColor: Color
     @State private var audioMode: AudioMode = .none
     @State private var spotifyURI  = ""
     @State private var spotifyName = ""
     @State private var showFilePicker = false
+    @State private var pendingFileURL: URL?
 
     private enum AudioMode: String, CaseIterable {
         case none       = "None"
@@ -18,7 +21,8 @@ struct EditOccasionButtonSheet: View {
         case spotify    = "Spotify Track"
     }
 
-    init(button: OccasionButton, onSave: @escaping (OccasionButton) -> Void) {
+    init(button: OccasionButton, profileID: UUID, onSave: @escaping (OccasionButton) -> Void) {
+        self.profileID = profileID
         self.onSave = onSave
         _edited = State(initialValue: button)
         _selectedColor = State(initialValue: Color(hex: button.colorHex) ?? .blue)
@@ -68,7 +72,10 @@ struct EditOccasionButtonSheet: View {
 
                         if audioMode == .localFile {
                             Button("Select MP3 File") { showFilePicker = true }
-                            if case .localFile(_, let name) = edited.audioSource {
+                            if let url = pendingFileURL {
+                                Text(url.lastPathComponent)
+                                    .font(.caption).foregroundStyle(.secondary)
+                            } else if case .localFile(_, let name) = edited.audioSource {
                                 Text(name).font(.caption).foregroundStyle(.secondary)
                             }
                         }
@@ -85,7 +92,7 @@ struct EditOccasionButtonSheet: View {
                     }
 
                     // Start offset
-                    if edited.audioSource != nil {
+                    if edited.audioSource != nil || pendingFileURL != nil {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Playback").font(.caption).foregroundStyle(.secondary)
                             HStack {
@@ -104,8 +111,7 @@ struct EditOccasionButtonSheet: View {
                             }
                             if edited.startOffset < 0 {
                                 Text("Offset must be 0 or greater.")
-                                    .font(.caption)
-                                    .foregroundStyle(.red)
+                                    .font(.caption).foregroundStyle(.red)
                             }
                         }
                     }
@@ -128,13 +134,8 @@ struct EditOccasionButtonSheet: View {
         }
         .frame(minWidth: 380, minHeight: 380)
         .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.mp3]) { result in
-            guard let url = try? result.get() else { return }
-            let hasAccess = url.startAccessingSecurityScopedResource()
-            defer { if hasAccess { url.stopAccessingSecurityScopedResource() } }
-            if let bookmark = try? url.bookmarkData(options: []) {
-                edited.audioSource = .localFile(bookmarkData: bookmark, fileName: url.lastPathComponent)
-                audioMode = .localFile
-            }
+            pendingFileURL = try? result.get()
+            if pendingFileURL != nil { audioMode = .localFile }
         }
     }
 
@@ -145,7 +146,10 @@ struct EditOccasionButtonSheet: View {
         case .none:
             result.audioSource = nil
         case .localFile:
-            break
+            if let url = pendingFileURL {
+                result.audioSource = store.copyAudioFile(from: url, profileID: profileID)
+            }
+            // else keep existing audioSource
         case .spotify:
             result.audioSource = spotifyURI.isEmpty
                 ? nil

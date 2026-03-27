@@ -10,7 +10,6 @@ struct EditView: View {
     @State private var selectedSong: SongItem?
     @State private var showAddSong = false
     @State private var newSongTitle = ""
-    @State private var showFilePicker = false
 
     private var sortedSongs: [SongItem] {
         profile.songs.sorted { $0.order < $1.order }
@@ -70,8 +69,7 @@ struct EditView: View {
                 WaitingForGameEditRow(source: Binding(
                     get: { profile.waitingForGameSource },
                     set: { profile.waitingForGameSource = $0 }
-                ))
-                .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.mp3]) { _ in }
+                ), profileID: profile.id)
             }
 
             // Occasion buttons
@@ -167,14 +165,14 @@ struct EditView: View {
             Button("Cancel", role: .cancel) { newSongTitle = "" }
         }
         .sheet(item: $selectedButton) { button in
-            EditOccasionButtonSheet(button: button) { updated in
+            EditOccasionButtonSheet(button: button, profileID: profile.id) { updated in
                 if let i = profile.occasionButtons.firstIndex(where: { $0.id == updated.id }) {
                     profile.occasionButtons[i] = updated
                 }
             }
         }
         .sheet(item: $selectedSong) { song in
-            EditSongSheet(song: song) { updated in
+            EditSongSheet(song: song, profileID: profile.id) { updated in
                 if let i = profile.songs.firstIndex(where: { $0.id == updated.id }) {
                     profile.songs[i] = updated
                 }
