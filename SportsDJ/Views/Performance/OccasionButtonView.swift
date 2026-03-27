@@ -25,7 +25,7 @@ struct OccasionButtonView: View {
 
                 VStack(spacing: 6) {
                     Text(button.label)
-                        .font(.system(size: 20, weight: .black, design: .rounded))
+                        .font(.system(size: 14, weight: .black, design: .rounded))
                         .foregroundStyle(.white)
                         .multilineTextAlignment(.center)
                         .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
