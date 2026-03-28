@@ -48,12 +48,7 @@ struct EditView: View {
                         }
                     } else {
                         Button("Connect to Spotify") {
-                            let spotifyURL = URL(string: "spotify://")!
-                            if UIApplication.shared.canOpenURL(spotifyURL) {
-                                audio.spotify.authorize()
-                            } else {
-                                audio.spotify.connectionError = "Spotify app is not installed. Please install Spotify first."
-                            }
+                            audio.spotify.authorize()
                         }
                     }
                 }
