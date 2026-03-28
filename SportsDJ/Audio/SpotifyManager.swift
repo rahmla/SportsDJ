@@ -60,7 +60,7 @@ final class SpotifyManager: NSObject {
             URLQueryItem(name: "client_id",             value: SpotifyConstants.clientID),
             URLQueryItem(name: "redirect_uri",          value: SpotifyConstants.redirectURI.absoluteString),
             URLQueryItem(name: "response_type",         value: "code"),
-            URLQueryItem(name: "scope",                 value: "streaming user-read-playback-state user-modify-playback-state"),
+            URLQueryItem(name: "scope",                 value: "user-read-playback-state user-modify-playback-state"),
             URLQueryItem(name: "code_challenge_method", value: "S256"),
             URLQueryItem(name: "code_challenge",        value: challenge),
         ]
