@@ -133,13 +133,12 @@ final class SpotifyManager: NSObject {
         guard let token = accessToken else { authorize(); return }
         var body: [String: Any] = ["uris": [uri]]
         if startOffset > 0 { body["position_ms"] = Int(startOffset * 1000) }
-        Task { await self.apiCall(token: token, method: "PUT", path: "/me/player/play", body: body) }
+        Task { await self.play(token: token, body: body) }
     }
 
     func playPlaylist(uri: String) {
         guard let token = accessToken else { authorize(); return }
-        Task { await self.apiCall(token: token, method: "PUT", path: "/me/player/play",
-                                  body: ["context_uri": uri]) }
+        Task { await self.play(token: token, body: ["context_uri": uri]) }
     }
 
     func pause() {
@@ -148,6 +147,41 @@ final class SpotifyManager: NSObject {
     }
 
     // MARK: - Internal
+
+    /// Play with automatic device activation: if no active device, transfer to the first
+    /// available device then retry.
+    @MainActor
+    private func play(token: String, body: [String: Any]) async {
+        do {
+            try await Self.webAPIRequest(token: token, method: "PUT", path: "/me/player/play", body: body)
+            connectionError = nil
+        } catch SpotifyError.noActiveDevice {
+            // Find any available device and activate it
+            do {
+                guard let deviceID = try await Self.firstAvailableDeviceID(token: token) else {
+                    connectionError = "No Spotify device found. Open Spotify on this device first."
+                    return
+                }
+                // Transfer playback to that device (play: false = don't auto-start)
+                try await Self.webAPIRequest(token: token, method: "PUT", path: "/me/player",
+                                             body: ["device_ids": [deviceID], "play": false])
+                // Give Spotify a moment to activate the device
+                try await Task.sleep(for: .milliseconds(600))
+                // Retry play on the now-active device
+                try await Self.webAPIRequest(token: token, method: "PUT",
+                                             path: "/me/player/play?device_id=\(deviceID)", body: body)
+                connectionError = nil
+            } catch {
+                connectionError = error.localizedDescription
+            }
+        } catch SpotifyError.tokenExpired {
+            accessToken  = nil
+            isConnected  = false
+            connectionError = SpotifyError.tokenExpired.errorDescription
+        } catch {
+            connectionError = error.localizedDescription
+        }
+    }
 
     @MainActor
     private func apiCall(token: String, method: String, path: String, body: [String: Any]? = nil) async {
@@ -160,6 +194,17 @@ final class SpotifyManager: NSObject {
         } catch {
             connectionError = error.localizedDescription
         }
+    }
+
+    private static func firstAvailableDeviceID(token: String) async throws -> String? {
+        struct Device: Decodable { let id: String?; let is_active: Bool }
+        struct DevicesResponse: Decodable { let devices: [Device] }
+        var req = URLRequest(url: URL(string: SpotifyConstants.apiBase + "/me/player/devices")!)
+        req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let (data, _) = try await URLSession.shared.data(for: req)
+        let resp = try JSONDecoder().decode(DevicesResponse.self, from: data)
+        // Prefer already-active device
+        return (resp.devices.first(where: { $0.is_active })?.id ?? resp.devices.first?.id)
     }
 
     private static func webAPIRequest(
