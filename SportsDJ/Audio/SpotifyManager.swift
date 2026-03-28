@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import CryptoKit
 #if os(iOS)
 import SpotifyiOS
 import UIKit
@@ -9,7 +10,7 @@ import AuthenticationServices
 // MARK: - SpotifyManager
 //
 // Spotify playback is supported on iOS/iPadOS only.
-// On macOS the buttons are visible but Spotify actions are no-ops.
+// Uses PKCE Authorization Code flow (implicit grant was deprecated by Spotify).
 
 enum SpotifyConstants {
     static let clientID    = "1063298d0bd844eaa7df158a4f86f9d2"
@@ -25,6 +26,7 @@ final class SpotifyManager: NSObject {
 #if os(iOS)
     private var appRemote: SPTAppRemote?
     private var authSession: ASWebAuthenticationSession?
+    private var pkceVerifier: String?
 #endif
 
     // MARK: - Authorize / Connect
@@ -36,13 +38,19 @@ final class SpotifyManager: NSObject {
         appRemote = SPTAppRemote(configuration: config, logLevel: .debug)
         appRemote?.delegate = self
 
-        // Use standard OAuth web flow — opens in-app browser, no deprecated APIs
+        // Generate PKCE pair
+        let verifier  = Self.generateCodeVerifier()
+        let challenge = Self.codeChallenge(for: verifier)
+        pkceVerifier  = verifier
+
         var components = URLComponents(string: "https://accounts.spotify.com/authorize")!
         components.queryItems = [
-            URLQueryItem(name: "client_id",     value: SpotifyConstants.clientID),
-            URLQueryItem(name: "redirect_uri",  value: SpotifyConstants.redirectURI.absoluteString),
-            URLQueryItem(name: "response_type", value: "token"),
-            URLQueryItem(name: "scope",         value: "streaming user-read-playback-state user-modify-playback-state"),
+            URLQueryItem(name: "client_id",             value: SpotifyConstants.clientID),
+            URLQueryItem(name: "redirect_uri",          value: SpotifyConstants.redirectURI.absoluteString),
+            URLQueryItem(name: "response_type",         value: "code"),
+            URLQueryItem(name: "scope",                 value: "streaming user-read-playback-state user-modify-playback-state"),
+            URLQueryItem(name: "code_challenge_method", value: "S256"),
+            URLQueryItem(name: "code_challenge",        value: challenge),
         ]
         guard let authURL = components.url else { return }
 
@@ -56,24 +64,34 @@ final class SpotifyManager: NSObject {
                 return
             }
             guard let url = callbackURL else { return }
-            self.debugLastURL = url.absoluteString
+            Task { @MainActor in self.debugLastURL = url.absoluteString }
 
-            // Implicit grant returns token in URL fragment: #access_token=TOKEN&...
-            let fragment = url.fragment ?? url.query ?? ""
-            var params: [String: String] = [:]
-            for pair in fragment.split(separator: "&") {
-                let kv = pair.split(separator: "=", maxSplits: 1)
-                if kv.count == 2 { params[String(kv[0])] = String(kv[1]) }
-            }
-            guard let token = params["access_token"] else {
+            // PKCE callback: sportsstreamdj://spotify-callback?code=CODE
+            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                  let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
+                  let verifier = self.pkceVerifier
+            else {
+                let errorParam = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                    .queryItems?.first(where: { $0.name == "error" })?.value ?? "unknown"
                 Task { @MainActor in
-                    self.connectionError = "No token in callback: \(url.absoluteString)"
+                    self.connectionError = "Auth failed: \(errorParam)"
                 }
                 return
             }
-            Task { @MainActor in
-                self.appRemote?.connectionParameters.accessToken = token
-                self.appRemote?.connect()
+
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    let token = try await Self.exchangeCodeForToken(code: code, verifier: verifier)
+                    await MainActor.run {
+                        self.appRemote?.connectionParameters.accessToken = token
+                        self.appRemote?.connect()
+                    }
+                } catch {
+                    await MainActor.run {
+                        self.connectionError = "Token exchange failed: \(error.localizedDescription)"
+                    }
+                }
             }
         }
         session.presentationContextProvider = self
@@ -132,22 +150,43 @@ final class SpotifyManager: NSObject {
 #endif
     }
 
-    // MARK: - OAuth callback (for onOpenURL fallback)
+    // MARK: - PKCE helpers
 
-    func handleCallbackURL(_ url: URL) {
-#if os(iOS)
-        debugLastURL = url.absoluteString
-        guard let params = appRemote?.authorizationParameters(from: url) else {
-            connectionError = "Callback received but params missing. appRemote nil: \(appRemote == nil)"
-            return
+    private static func generateCodeVerifier() -> String {
+        var buffer = [UInt8](repeating: 0, count: 64)
+        _ = SecRandomCopyBytes(kSecRandomDefault, buffer.count, &buffer)
+        return Data(buffer).base64URLEncoded()
+    }
+
+    private static func codeChallenge(for verifier: String) -> String {
+        let digest = SHA256.hash(data: Data(verifier.utf8))
+        return Data(digest).base64URLEncoded()
+    }
+
+    private static func exchangeCodeForToken(code: String, verifier: String) async throws -> String {
+        var request = URLRequest(url: URL(string: "https://accounts.spotify.com/api/token")!)
+        request.httpMethod = "POST"
+        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
+
+        let bodyParams: [String: String] = [
+            "grant_type":    "authorization_code",
+            "code":          code,
+            "redirect_uri":  SpotifyConstants.redirectURI.absoluteString,
+            "client_id":     SpotifyConstants.clientID,
+            "code_verifier": verifier,
+        ]
+        request.httpBody = bodyParams
+            .map { "\($0.key)=\($0.value.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? $0.value)" }
+            .joined(separator: "&")
+            .data(using: .utf8)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+            let body = String(data: data, encoding: .utf8) ?? ""
+            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode): \(body)"])
         }
-        if let token = params[SPTAppRemoteAccessTokenKey] {
-            appRemote?.connectionParameters.accessToken = token
-            appRemote?.connect()
-        } else if let error = params[SPTAppRemoteErrorDescriptionKey] {
-            connectionError = error
-        }
-#endif
+        struct TokenResponse: Decodable { let access_token: String }
+        return try JSONDecoder().decode(TokenResponse.self, from: data).access_token
     }
 }
 
@@ -179,3 +218,14 @@ extension SpotifyManager: ASWebAuthenticationPresentationContextProviding {
     }
 }
 #endif
+
+// MARK: - Data+Base64URL
+
+private extension Data {
+    func base64URLEncoded() -> String {
+        base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+}
