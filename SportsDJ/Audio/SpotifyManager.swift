@@ -19,6 +19,7 @@ enum SpotifyConstants {
 final class SpotifyManager: NSObject {
     var isConnected: Bool = false
     var connectionError: String?
+    var debugLastURL: String = "No callback received yet"
 
 #if os(iOS)
     private var appRemote: SPTAppRemote?
@@ -100,7 +101,11 @@ final class SpotifyManager: NSObject {
 
     func handleCallbackURL(_ url: URL) {
 #if os(iOS)
-        guard let params = appRemote?.authorizationParameters(from: url) else { return }
+        debugLastURL = url.absoluteString
+        guard let params = appRemote?.authorizationParameters(from: url) else {
+            connectionError = "Callback received but params missing. appRemote nil: \(appRemote == nil)"
+            return
+        }
         if let token = params[SPTAppRemoteAccessTokenKey] {
             appRemote?.connectionParameters.accessToken = token
             appRemote?.connect()

@@ -57,6 +57,9 @@ struct EditView: View {
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
+                Text(audio.spotify.debugLastURL)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
                 #endif
             }
 
