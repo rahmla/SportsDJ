@@ -36,10 +36,19 @@ final class SpotifyManager: NSObject {
 
         // authorizeAndPlayURI uses the deprecated UIApplication.openURL which iOS blocks.
         // Build the auth URL manually and use the modern open(_:options:completionHandler:).
-        let redirect = SpotifyConstants.redirectURI.absoluteString
-            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlString = "spotify://?token_version=2&client_id=\(SpotifyConstants.clientID)&redirect_uri=\(redirect)&response_type=token&nosignup=true&show_dialog=false&spotifyAppRemoteCallbackURL=\(redirect)"
-        guard let url = URL(string: urlString) else { return }
+        var components = URLComponents()
+        components.scheme = "spotify"
+        components.host = ""
+        components.path = ""
+        components.queryItems = [
+            URLQueryItem(name: "token_version",              value: "2"),
+            URLQueryItem(name: "client_id",                  value: SpotifyConstants.clientID),
+            URLQueryItem(name: "redirect_uri",               value: SpotifyConstants.redirectURI.absoluteString),
+            URLQueryItem(name: "response_type",              value: "token"),
+            URLQueryItem(name: "show_dialog",                value: "true"),
+            URLQueryItem(name: "spotifyAppRemoteCallbackURL", value: SpotifyConstants.redirectURI.absoluteString),
+        ]
+        guard let url = components.url else { return }
         UIApplication.shared.open(url, options: [:]) { [weak self] success in
             if !success {
                 Task { @MainActor in
