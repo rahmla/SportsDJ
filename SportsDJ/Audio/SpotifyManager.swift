@@ -2,25 +2,36 @@ import Foundation
 import Observation
 import CryptoKit
 #if os(iOS)
-import SpotifyiOS
 import UIKit
 import AuthenticationServices
 #endif
 
 // MARK: - SpotifyManager
 //
-// Spotify playback is supported on iOS/iPadOS only.
-// Uses PKCE Authorization Code flow.
+// Auth:     PKCE Authorization Code flow via ASWebAuthenticationSession
+// Playback: Spotify Web API (no SPTAppRemote / local socket dependency)
 //
-// Connection sequence:
-//  1. authorize() → in-app browser → PKCE token
-//  2. Token obtained → open Spotify app → set pendingConnect flag
-//  3. When our app returns to foreground (sceneDidBecomeActive) → appRemote.connect()
-//     (SPTAppRemote socket is only available while Spotify runs in background)
+// Requires Spotify Premium. Spotify app must be running on the device
+// (background is fine) so it appears as an active playback device.
 
 enum SpotifyConstants {
     static let clientID    = "1063298d0bd844eaa7df158a4f86f9d2"
     static let redirectURI = URL(string: "sportsstreamdj://spotify-callback")!
+    static let apiBase     = "https://api.spotify.com/v1"
+}
+
+private enum SpotifyError: LocalizedError {
+    case tokenExpired
+    case noActiveDevice
+    case api(Int, String)
+
+    var errorDescription: String? {
+        switch self {
+        case .tokenExpired:    return "Spotify session expired — please reconnect."
+        case .noActiveDevice:  return "No active Spotify device. Open Spotify on this device first."
+        case .api(let code, let msg): return "Spotify API error \(code): \(msg)"
+        }
+    }
 }
 
 @Observable
@@ -29,33 +40,17 @@ final class SpotifyManager: NSObject {
     var connectionError: String?
     var debugLastURL: String = "No callback received yet"
 
+    private var accessToken: String?
+
 #if os(iOS)
-    private var appRemote: SPTAppRemote?
     private var authSession: ASWebAuthenticationSession?
     private var pkceVerifier: String?
-    private var pendingConnect = false
 #endif
 
-    // MARK: - Lifecycle
-
-    /// Call this from the app's scenePhase .active handler.
-    func sceneDidBecomeActive() {
-#if os(iOS)
-        guard pendingConnect else { return }
-        pendingConnect = false
-        appRemote?.connect()
-#endif
-    }
-
-    // MARK: - Authorize / Connect
+    // MARK: - Authorize
 
     func authorize() {
 #if os(iOS)
-        let config = SPTConfiguration(clientID: SpotifyConstants.clientID,
-                                      redirectURL: SpotifyConstants.redirectURI)
-        appRemote = SPTAppRemote(configuration: config, logLevel: .debug)
-        appRemote?.delegate = self
-
         let verifier  = Self.generateCodeVerifier()
         let challenge = Self.codeChallenge(for: verifier)
         pkceVerifier  = verifier
@@ -77,19 +72,23 @@ final class SpotifyManager: NSObject {
         ) { [weak self] callbackURL, error in
             guard let self else { return }
             if let error {
+                // Ignore user-cancelled errors
+                let nsError = error as NSError
+                if nsError.domain == ASWebAuthenticationSessionError.errorDomain,
+                   nsError.code == ASWebAuthenticationSessionError.canceledLogin.rawValue { return }
                 Task { @MainActor in self.connectionError = error.localizedDescription }
                 return
             }
             guard let url = callbackURL else { return }
             Task { @MainActor in self.debugLastURL = url.absoluteString }
 
-            guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
-                  let code = components.queryItems?.first(where: { $0.name == "code" })?.value,
+            guard let comps   = URLComponents(url: url, resolvingAgainstBaseURL: false),
+                  let code    = comps.queryItems?.first(where: { $0.name == "code" })?.value,
                   let verifier = self.pkceVerifier
             else {
-                let errorParam = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                let err = URLComponents(url: url, resolvingAgainstBaseURL: false)?
                     .queryItems?.first(where: { $0.name == "error" })?.value ?? "unknown"
-                Task { @MainActor in self.connectionError = "Auth failed: \(errorParam)" }
+                Task { @MainActor in self.connectionError = "Auth failed: \(err)" }
                 return
             }
 
@@ -98,12 +97,9 @@ final class SpotifyManager: NSObject {
                 do {
                     let token = try await Self.exchangeCodeForToken(code: code, verifier: verifier)
                     await MainActor.run {
-                        self.appRemote?.connectionParameters.accessToken = token
-                        // SPTAppRemote requires Spotify to be running and listening on its
-                        // local socket. Open Spotify now; once it's backgrounded and our
-                        // app returns to foreground, sceneDidBecomeActive() calls connect().
-                        self.pendingConnect = true
-                        UIApplication.shared.open(URL(string: "spotify://")!)
+                        self.accessToken   = token
+                        self.isConnected   = true
+                        self.connectionError = nil
                     }
                 } catch {
                     await MainActor.run {
@@ -121,46 +117,69 @@ final class SpotifyManager: NSObject {
 
     func disconnect() {
 #if os(iOS)
-        appRemote?.disconnect()
         authSession?.cancel()
         authSession = nil
-        pendingConnect = false
 #endif
-        isConnected = false
+        accessToken  = nil
+        isConnected  = false
     }
 
-    // MARK: - Playback
+    // MARK: - Playback (Web API)
 
     func playTrack(uri: String, startOffset: Double = 0) {
-#if os(iOS)
-        guard isConnected else { return }
-        appRemote?.playerAPI?.play(uri) { [weak self] _, error in
-            if let error { print("[Spotify] playTrack error: \(error)") }
-            else if startOffset > 0 {
-                self?.appRemote?.playerAPI?.seek(toPosition: Int(startOffset * 1000)) { _, _ in }
-            }
-        }
-#else
-        print("[Spotify] macOS: playTrack not supported — \(uri)")
-#endif
+        guard let token = accessToken else { authorize(); return }
+        var body: [String: Any] = ["uris": [uri]]
+        if startOffset > 0 { body["position_ms"] = Int(startOffset * 1000) }
+        Task { await self.apiCall(token: token, method: "PUT", path: "/me/player/play", body: body) }
     }
 
     func playPlaylist(uri: String) {
-#if os(iOS)
-        guard isConnected else { return }
-        appRemote?.playerAPI?.play(uri) { _, error in
-            if let error { print("[Spotify] playPlaylist error: \(error)") }
-        }
-#else
-        print("[Spotify] macOS: playPlaylist not supported — \(uri)")
-#endif
+        guard let token = accessToken else { authorize(); return }
+        Task { await self.apiCall(token: token, method: "PUT", path: "/me/player/play",
+                                  body: ["context_uri": uri]) }
     }
 
     func pause() {
-#if os(iOS)
-        guard isConnected else { return }
-        appRemote?.playerAPI?.pause { _, _ in }
-#endif
+        guard let token = accessToken else { return }
+        Task { await self.apiCall(token: token, method: "PUT", path: "/me/player/pause") }
+    }
+
+    // MARK: - Internal
+
+    @MainActor
+    private func apiCall(token: String, method: String, path: String, body: [String: Any]? = nil) async {
+        do {
+            try await Self.webAPIRequest(token: token, method: method, path: path, body: body)
+        } catch SpotifyError.tokenExpired {
+            accessToken = nil
+            isConnected = false
+            connectionError = SpotifyError.tokenExpired.errorDescription
+        } catch {
+            connectionError = error.localizedDescription
+        }
+    }
+
+    private static func webAPIRequest(
+        token: String,
+        method: String,
+        path: String,
+        body: [String: Any]? = nil
+    ) async throws {
+        var request = URLRequest(url: URL(string: SpotifyConstants.apiBase + path)!)
+        request.httpMethod = method
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else { return }
+        if http.statusCode == 401 { throw SpotifyError.tokenExpired }
+        if http.statusCode == 404 { throw SpotifyError.noActiveDevice }
+        if http.statusCode >= 400 {
+            let msg = String(data: data, encoding: .utf8) ?? ""
+            throw SpotifyError.api(http.statusCode, msg)
+        }
     }
 
     // MARK: - PKCE helpers
@@ -180,7 +199,6 @@ final class SpotifyManager: NSObject {
         var request = URLRequest(url: URL(string: "https://accounts.spotify.com/api/token")!)
         request.httpMethod = "POST"
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-
         let bodyParams: [String: String] = [
             "grant_type":    "authorization_code",
             "code":          code,
@@ -196,32 +214,17 @@ final class SpotifyManager: NSObject {
         let (data, response) = try await URLSession.shared.data(for: request)
         if let http = response as? HTTPURLResponse, http.statusCode != 200 {
             let body = String(data: data, encoding: .utf8) ?? ""
-            throw URLError(.badServerResponse, userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode): \(body)"])
+            throw URLError(.badServerResponse,
+                           userInfo: [NSLocalizedDescriptionKey: "HTTP \(http.statusCode): \(body)"])
         }
         struct TokenResponse: Decodable { let access_token: String }
         return try JSONDecoder().decode(TokenResponse.self, from: data).access_token
     }
 }
 
-// MARK: - SPTAppRemoteDelegate (iOS only)
+// MARK: - ASWebAuthenticationPresentationContextProviding (iOS only)
 
 #if os(iOS)
-extension SpotifyManager: SPTAppRemoteDelegate {
-    func appRemoteDidEstablishConnection(_ appRemote: SPTAppRemote) {
-        isConnected = true
-        connectionError = nil
-    }
-    func appRemote(_ appRemote: SPTAppRemote, didDisconnectWithError error: Error?) {
-        isConnected = false
-    }
-    func appRemote(_ appRemote: SPTAppRemote, didFailConnectionAttemptWithError error: Error?) {
-        isConnected = false
-        connectionError = error?.localizedDescription
-    }
-}
-
-// MARK: - ASWebAuthenticationPresentationContextProviding
-
 extension SpotifyManager: ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         UIApplication.shared.connectedScenes
