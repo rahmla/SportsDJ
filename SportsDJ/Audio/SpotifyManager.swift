@@ -3,6 +3,7 @@ import Observation
 #if os(iOS)
 import SpotifyiOS
 import UIKit
+import AuthenticationServices
 #endif
 
 // MARK: - SpotifyManager
@@ -23,6 +24,7 @@ final class SpotifyManager: NSObject {
 
 #if os(iOS)
     private var appRemote: SPTAppRemote?
+    private var authSession: ASWebAuthenticationSession?
 #endif
 
     // MARK: - Authorize / Connect
@@ -34,28 +36,50 @@ final class SpotifyManager: NSObject {
         appRemote = SPTAppRemote(configuration: config, logLevel: .debug)
         appRemote?.delegate = self
 
-        // authorizeAndPlayURI uses the deprecated UIApplication.openURL which iOS blocks.
-        // Build the auth URL manually and use the modern open(_:options:completionHandler:).
-        var components = URLComponents()
-        components.scheme = "spotify"
-        components.host = ""
-        components.path = ""
+        // Use standard OAuth web flow — opens in-app browser, no deprecated APIs
+        var components = URLComponents(string: "https://accounts.spotify.com/authorize")!
         components.queryItems = [
-            URLQueryItem(name: "token_version",              value: "2"),
-            URLQueryItem(name: "client_id",                  value: SpotifyConstants.clientID),
-            URLQueryItem(name: "redirect_uri",               value: SpotifyConstants.redirectURI.absoluteString),
-            URLQueryItem(name: "response_type",              value: "token"),
-            URLQueryItem(name: "show_dialog",                value: "true"),
-            URLQueryItem(name: "spotifyAppRemoteCallbackURL", value: SpotifyConstants.redirectURI.absoluteString),
+            URLQueryItem(name: "client_id",     value: SpotifyConstants.clientID),
+            URLQueryItem(name: "redirect_uri",  value: SpotifyConstants.redirectURI.absoluteString),
+            URLQueryItem(name: "response_type", value: "token"),
+            URLQueryItem(name: "scope",         value: "streaming user-read-playback-state user-modify-playback-state"),
         ]
-        guard let url = components.url else { return }
-        UIApplication.shared.open(url, options: [:]) { [weak self] success in
-            if !success {
+        guard let authURL = components.url else { return }
+
+        let session = ASWebAuthenticationSession(
+            url: authURL,
+            callbackURLScheme: "sportsstreamdj"
+        ) { [weak self] callbackURL, error in
+            guard let self else { return }
+            if let error {
+                Task { @MainActor in self.connectionError = error.localizedDescription }
+                return
+            }
+            guard let url = callbackURL else { return }
+            self.debugLastURL = url.absoluteString
+
+            // Implicit grant returns token in URL fragment: #access_token=TOKEN&...
+            let fragment = url.fragment ?? url.query ?? ""
+            var params: [String: String] = [:]
+            for pair in fragment.split(separator: "&") {
+                let kv = pair.split(separator: "=", maxSplits: 1)
+                if kv.count == 2 { params[String(kv[0])] = String(kv[1]) }
+            }
+            guard let token = params["access_token"] else {
                 Task { @MainActor in
-                    self?.connectionError = "Spotify app not found. Please install Spotify."
+                    self.connectionError = "No token in callback: \(url.absoluteString)"
                 }
+                return
+            }
+            Task { @MainActor in
+                self.appRemote?.connectionParameters.accessToken = token
+                self.appRemote?.connect()
             }
         }
+        session.presentationContextProvider = self
+        session.prefersEphemeralWebBrowserSession = false
+        authSession = session
+        session.start()
 #endif
     }
 
@@ -68,6 +92,8 @@ final class SpotifyManager: NSObject {
     func disconnect() {
 #if os(iOS)
         appRemote?.disconnect()
+        authSession?.cancel()
+        authSession = nil
 #endif
         isConnected = false
     }
@@ -106,7 +132,7 @@ final class SpotifyManager: NSObject {
 #endif
     }
 
-    // MARK: - OAuth callback
+    // MARK: - OAuth callback (for onOpenURL fallback)
 
     func handleCallbackURL(_ url: URL) {
 #if os(iOS)
@@ -131,6 +157,7 @@ final class SpotifyManager: NSObject {
 extension SpotifyManager: SPTAppRemoteDelegate {
     func appRemoteDidEstablishConnection(_ appRemote: SPTAppRemote) {
         isConnected = true
+        connectionError = nil
     }
     func appRemote(_ appRemote: SPTAppRemote, didDisconnectWithError error: Error?) {
         isConnected = false
@@ -138,6 +165,17 @@ extension SpotifyManager: SPTAppRemoteDelegate {
     func appRemote(_ appRemote: SPTAppRemote, didFailConnectionAttemptWithError error: Error?) {
         isConnected = false
         connectionError = error?.localizedDescription
+    }
+}
+
+// MARK: - ASWebAuthenticationPresentationContextProviding
+
+extension SpotifyManager: ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first(where: { $0.isKeyWindow }) ?? ASPresentationAnchor()
     }
 }
 #endif
