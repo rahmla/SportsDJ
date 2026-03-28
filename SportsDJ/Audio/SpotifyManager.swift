@@ -85,7 +85,13 @@ final class SpotifyManager: NSObject {
                     let token = try await Self.exchangeCodeForToken(code: code, verifier: verifier)
                     await MainActor.run {
                         self.appRemote?.connectionParameters.accessToken = token
-                        self.appRemote?.connect()
+                        // SPTAppRemote communicates with the Spotify app via local socket.
+                        // Open Spotify so it's running, then connect after it launches.
+                        UIApplication.shared.open(URL(string: "spotify://")!) { [weak self] _ in
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                                self?.appRemote?.connect()
+                            }
+                        }
                     }
                 } catch {
                     await MainActor.run {
