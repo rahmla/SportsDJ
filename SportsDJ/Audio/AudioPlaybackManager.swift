@@ -11,6 +11,20 @@ final class AudioPlaybackManager: NSObject {
 
     private var audioPlayer: AVAudioPlayer?
 
+    override init() {
+        super.init()
+        configureAudioSession()
+    }
+
+    private func configureAudioSession() {
+        do {
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setActive(true)
+        } catch {
+            print("[Audio] AVAudioSession setup failed: \(error)")
+        }
+    }
+
     // MARK: - Public API
 
     func play(source: AudioSource, startOffset: Double = 0) {
@@ -33,7 +47,8 @@ final class AudioPlaybackManager: NSObject {
     func stop() {
         audioPlayer?.stop()
         audioPlayer = nil
-        spotify.pause()
+        if case .spotifyTrack = currentSource { spotify.pause() }
+        else if case .spotifyPlaylist = currentSource { spotify.pause() }
         isPlaying = false
         currentSource = nil
     }
