@@ -156,20 +156,18 @@ final class SpotifyManager: NSObject {
             try await Self.webAPIRequest(token: token, method: "PUT", path: "/me/player/play", body: body)
             connectionError = nil
         } catch SpotifyError.noActiveDevice {
-            // Find any available device and activate it
             do {
-                guard let deviceID = try await Self.firstAvailableDeviceID(token: token) else {
+                guard let device = try await Self.firstAvailableDeviceID(token: token) else {
                     connectionError = "No Spotify device found. Open Spotify on this device first."
                     return
                 }
-                // Transfer playback to that device (play: false = don't auto-start)
+                debugLastURL = "Device: \(device.name)"
+                // Transfer playback to that device
                 try await Self.webAPIRequest(token: token, method: "PUT", path: "/me/player",
-                                             body: ["device_ids": [deviceID], "play": false])
-                // Give Spotify a moment to activate the device
-                try await Task.sleep(for: .milliseconds(600))
-                // Retry play on the now-active device
+                                             body: ["device_ids": [device.id], "play": false])
+                try await Task.sleep(for: .milliseconds(800))
                 try await Self.webAPIRequest(token: token, method: "PUT",
-                                             path: "/me/player/play?device_id=\(deviceID)", body: body)
+                                             path: "/me/player/play?device_id=\(device.id)", body: body)
                 connectionError = nil
             } catch {
                 connectionError = error.localizedDescription
@@ -196,15 +194,20 @@ final class SpotifyManager: NSObject {
         }
     }
 
-    private static func firstAvailableDeviceID(token: String) async throws -> String? {
-        struct Device: Decodable { let id: String?; let is_active: Bool }
+    private static func firstAvailableDeviceID(token: String) async throws -> (id: String, name: String)? {
+        struct Device: Decodable { let id: String?; let name: String; let type: String; let is_active: Bool }
         struct DevicesResponse: Decodable { let devices: [Device] }
         var req = URLRequest(url: URL(string: SpotifyConstants.apiBase + "/me/player/devices")!)
         req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         let (data, _) = try await URLSession.shared.data(for: req)
         let resp = try JSONDecoder().decode(DevicesResponse.self, from: data)
-        // Prefer already-active device
-        return (resp.devices.first(where: { $0.is_active })?.id ?? resp.devices.first?.id)
+        // Prefer active smartphone, then any smartphone, then any active, then first available
+        let pick = resp.devices.first(where: { $0.is_active && $0.type.lowercased() == "smartphone" })
+                ?? resp.devices.first(where: { $0.type.lowercased() == "smartphone" })
+                ?? resp.devices.first(where: { $0.is_active })
+                ?? resp.devices.first
+        guard let d = pick, let id = d.id else { return nil }
+        return (id, d.name)
     }
 
     private static func webAPIRequest(
