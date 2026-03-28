@@ -15,12 +15,18 @@ import SwiftUI
 struct SportsDJApp: App {
     @State private var profileStore = ProfileStore()
     @State private var audioManager = AudioPlaybackManager()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(profileStore)
                 .environment(audioManager)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                audioManager.spotify.sceneDidBecomeActive()
+            }
         }
         .commands {
             CommandGroup(replacing: .newItem) {
