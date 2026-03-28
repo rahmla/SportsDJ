@@ -37,7 +37,7 @@ final class SpotifyManager: NSObject {
         // Build the auth URL manually and use the modern open(_:options:completionHandler:).
         let redirect = SpotifyConstants.redirectURI.absoluteString
             .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
-        let urlString = "spotify://authorize?client_id=\(SpotifyConstants.clientID)&redirect_uri=\(redirect)&response_type=token&spotifyAppRemoteCallbackURL=\(redirect)"
+        let urlString = "spotify://?token_version=2&client_id=\(SpotifyConstants.clientID)&redirect_uri=\(redirect)&response_type=token&nosignup=true&show_dialog=false&spotifyAppRemoteCallbackURL=\(redirect)"
         guard let url = URL(string: urlString) else { return }
         UIApplication.shared.open(url, options: [:]) { [weak self] success in
             if !success {
