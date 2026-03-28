@@ -97,9 +97,12 @@ final class SpotifyManager: NSObject {
                 do {
                     let token = try await Self.exchangeCodeForToken(code: code, verifier: verifier)
                     await MainActor.run {
-                        self.accessToken   = token
-                        self.isConnected   = true
+                        self.accessToken    = token
+                        self.isConnected    = true
                         self.connectionError = nil
+                        // Open Spotify so it registers as an active playback device.
+                        // User switches back to SportsDJ and playback controls work.
+                        UIApplication.shared.open(URL(string: "spotify://")!)
                     }
                 } catch {
                     await MainActor.run {
