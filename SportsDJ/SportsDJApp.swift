@@ -21,10 +21,6 @@ struct SportsDJApp: App {
             ContentView()
                 .environment(profileStore)
                 .environment(audioManager)
-                .onOpenURL { url in
-                    // Forward Spotify OAuth callback
-                    audioManager.spotify.handleCallbackURL(url)
-                }
         }
         .commands {
             CommandGroup(replacing: .newItem) {
