@@ -2,6 +2,7 @@ import Foundation
 import Observation
 #if os(iOS)
 import SpotifyiOS
+import UIKit
 #endif
 
 // MARK: - SpotifyManager
@@ -31,7 +32,20 @@ final class SpotifyManager: NSObject {
                                       redirectURL: SpotifyConstants.redirectURI)
         appRemote = SPTAppRemote(configuration: config, logLevel: .debug)
         appRemote?.delegate = self
-        appRemote?.authorizeAndPlayURI("")
+
+        // authorizeAndPlayURI uses the deprecated UIApplication.openURL which iOS blocks.
+        // Build the auth URL manually and use the modern open(_:options:completionHandler:).
+        let redirect = SpotifyConstants.redirectURI.absoluteString
+            .addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let urlString = "spotify://authorize?client_id=\(SpotifyConstants.clientID)&redirect_uri=\(redirect)&response_type=token&spotifyAppRemoteCallbackURL=\(redirect)"
+        guard let url = URL(string: urlString) else { return }
+        UIApplication.shared.open(url, options: [:]) { [weak self] success in
+            if !success {
+                Task { @MainActor in
+                    self?.connectionError = "Spotify app not found. Please install Spotify."
+                }
+            }
+        }
 #endif
     }
 
