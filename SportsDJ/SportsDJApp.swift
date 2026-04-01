@@ -1,15 +1,15 @@
 import SwiftUI
 
-// MARK: - Sports Stream DJ
+// MARK: - SportsDJ
 //
 // Xcode setup checklist:
-// 1. File > New > Project > Multiplatform > App
-// 2. Add all files from this scaffold to the project
-// 3. Targets: set minimum iOS 17 / macOS 14
-// 4. Signing & Capabilities: enable iCloud > iCloud Documents
+// 1. Targets: set minimum iOS 17
+// 2. Signing & Capabilities → + Capability → MusicKit
+//    (adds com.apple.developer.music-kit entitlement automatically)
+// 3. Signing & Capabilities → + Capability → iCloud → iCloud Documents
 //    - Add iCloud container (e.g. iCloud.com.yourname.SportsDJ)
-// 5. Info.plist: add NSAppleMusicUsageDescription (for local audio)
-// 6. See Audio/SpotifyManager.swift for Spotify SDK setup steps
+// 4. Info.plist already contains NSAppleMusicUsageDescription
+// 5. Apple Developer account must have MusicKit enabled for the App ID
 
 @main
 struct SportsDJApp: App {

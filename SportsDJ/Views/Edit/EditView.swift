@@ -33,34 +33,25 @@ struct EditView: View {
                 }
             }
 
-            // Spotify
-            Section("Spotify") {
-                #if os(iOS)
+            // Apple Music
+            Section("Apple Music") {
                 HStack {
-                    Image(systemName: audio.spotify.isConnected ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(audio.spotify.isConnected ? Color.green : Color.secondary)
-                    Text(audio.spotify.isConnected ? "Connected" : "Not connected")
-                        .foregroundStyle(audio.spotify.isConnected ? Color.primary : Color.secondary)
+                    Image(systemName: audio.musicKit.isAuthorized ? "checkmark.circle.fill" : "circle")
+                        .foregroundStyle(audio.musicKit.isAuthorized ? Color.green : Color.secondary)
+                    Text(audio.musicKit.isAuthorized ? "Authorized" : "Not authorized")
+                        .foregroundStyle(audio.musicKit.isAuthorized ? Color.primary : Color.secondary)
                     Spacer()
-                    if audio.spotify.isConnected {
-                        Button("Disconnect", role: .destructive) {
-                            audio.spotify.disconnect()
-                        }
-                    } else {
-                        Button("Connect to Spotify") {
-                            audio.spotify.authorize()
+                    if !audio.musicKit.isAuthorized {
+                        Button("Authorize") {
+                            Task { await audio.musicKit.requestAuthorization() }
                         }
                     }
                 }
-                if let error = audio.spotify.connectionError {
+                if let error = audio.musicKit.authorizationError {
                     Text(error)
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
-                Text(audio.spotify.debugLastURL)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                #endif
             }
 
             // Waiting for game

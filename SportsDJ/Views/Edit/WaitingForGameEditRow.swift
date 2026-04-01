@@ -8,14 +8,14 @@ struct WaitingForGameEditRow: View {
     @Environment(ProfileStore.self) private var store
 
     @State private var mode: InputMode = .none
-    @State private var playlistURI  = ""
-    @State private var playlistName = ""
+    @State private var playlistInput = ""
+    @State private var playlistName  = ""
     @State private var showFilePicker = false
 
     private enum InputMode: String, CaseIterable {
-        case none            = "None"
-        case localFile       = "Local MP3"
-        case spotifyPlaylist = "Spotify Playlist"
+        case none                = "None"
+        case localFile           = "Local MP3"
+        case appleMusicPlaylist  = "Apple Music Playlist"
     }
 
     init(source: Binding<AudioSource?>, profileID: UUID) {
@@ -24,10 +24,10 @@ struct WaitingForGameEditRow: View {
         switch source.wrappedValue {
         case .localFile:
             _mode = State(initialValue: .localFile)
-        case .spotifyPlaylist(let uri, let name):
-            _mode = State(initialValue: .spotifyPlaylist)
-            _playlistURI  = State(initialValue: uri)
-            _playlistName = State(initialValue: name)
+        case .appleMusicPlaylist(let id, let name):
+            _mode = State(initialValue: .appleMusicPlaylist)
+            _playlistInput = State(initialValue: id)
+            _playlistName  = State(initialValue: name)
         default:
             _mode = State(initialValue: .none)
         }
@@ -49,14 +49,14 @@ struct WaitingForGameEditRow: View {
                 }
             }
 
-            if mode == .spotifyPlaylist {
+            if mode == .appleMusicPlaylist {
                 TextField("Playlist name", text: $playlistName)
                     .onChange(of: playlistName) { _, _ in commitSource() }
-                TextField("Spotify URI  (spotify:playlist:…)", text: $playlistURI)
+                TextField("Apple Music Playlist ID or share URL", text: $playlistInput)
                     .font(.caption.monospaced())
                     .autocorrectionDisabled()
                     .disableAutocapitalization()
-                    .onChange(of: playlistURI) { _, _ in commitSource() }
+                    .onChange(of: playlistInput) { _, _ in commitSource() }
             }
         }
         .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.mp3]) { result in
@@ -71,9 +71,10 @@ struct WaitingForGameEditRow: View {
             source = nil
         case .localFile:
             break
-        case .spotifyPlaylist:
-            guard !playlistURI.isEmpty else { return }
-            source = .spotifyPlaylist(uri: playlistURI, playlistName: playlistName)
+        case .appleMusicPlaylist:
+            let id = AudioSource.extractAppleMusicID(from: playlistInput)
+            guard !id.isEmpty else { return }
+            source = .appleMusicPlaylist(id: id, playlistName: playlistName)
         }
     }
 }

@@ -10,15 +10,14 @@ struct EditOccasionButtonSheet: View {
     @State private var edited: OccasionButton
     @State private var selectedColor: Color
     @State private var audioMode: AudioMode = .none
-    @State private var spotifyURI  = ""
-    @State private var spotifyName = ""
+    @State private var appleMusicInput = ""
     @State private var showFilePicker = false
     @State private var pendingFileURL: URL?
 
     private enum AudioMode: String, CaseIterable {
         case none       = "None"
         case localFile  = "Local MP3"
-        case spotify    = "Spotify Track"
+        case appleMusic = "Apple Music"
     }
 
     init(button: OccasionButton, profileID: UUID, onSave: @escaping (OccasionButton) -> Void) {
@@ -29,10 +28,9 @@ struct EditOccasionButtonSheet: View {
         switch button.audioSource {
         case .localFile:
             _audioMode = State(initialValue: .localFile)
-        case .spotifyTrack(let uri, let name):
-            _audioMode = State(initialValue: .spotify)
-            _spotifyURI  = State(initialValue: uri)
-            _spotifyName = State(initialValue: name)
+        case .appleMusicTrack(let id, _):
+            _audioMode = State(initialValue: .appleMusic)
+            _appleMusicInput = State(initialValue: id)
         default:
             _audioMode = State(initialValue: .none)
         }
@@ -80,12 +78,14 @@ struct EditOccasionButtonSheet: View {
                             }
                         }
 
-                        if audioMode == .spotify {
-                            TextField("Spotify URI  (spotify:track:…)", text: $spotifyURI)
+                        if audioMode == .appleMusic {
+                            TextField("Apple Music ID or share URL", text: $appleMusicInput)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.caption.monospaced())
                                 .autocorrectionDisabled()
                                 .disableAutocapitalization()
+                            Text("Paste a song ID or share link from Apple Music")
+                                .font(.caption2).foregroundStyle(.tertiary)
                         }
                     }
 
@@ -148,10 +148,9 @@ struct EditOccasionButtonSheet: View {
                 result.audioSource = store.copyAudioFile(from: url, profileID: profileID)
             }
             // else keep existing audioSource
-        case .spotify:
-            result.audioSource = spotifyURI.isEmpty
-                ? nil
-                : .spotifyTrack(uri: spotifyURI, trackName: spotifyURI)
+        case .appleMusic:
+            let id = AudioSource.extractAppleMusicID(from: appleMusicInput)
+            result.audioSource = id.isEmpty ? nil : .appleMusicTrack(id: id, trackName: edited.label)
         }
         onSave(result)
         dismiss()

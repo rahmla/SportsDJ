@@ -9,14 +9,14 @@ struct EditSongSheet: View {
     @Environment(ProfileStore.self) private var store
     @State private var edited: SongItem
     @State private var audioMode: AudioMode = .none
-    @State private var spotifyURI = ""
+    @State private var appleMusicInput = ""
     @State private var showFilePicker = false
     @State private var pendingFileURL: URL?
 
     private enum AudioMode: String, CaseIterable {
-        case none      = "None"
-        case localFile = "Local MP3"
-        case spotify   = "Spotify Track"
+        case none       = "None"
+        case localFile  = "Local MP3"
+        case appleMusic = "Apple Music"
     }
 
     init(song: SongItem, profileID: UUID, onSave: @escaping (SongItem) -> Void) {
@@ -26,9 +26,9 @@ struct EditSongSheet: View {
         switch song.audioSource {
         case .localFile:
             _audioMode = State(initialValue: .localFile)
-        case .spotifyTrack(let uri, _):
-            _audioMode = State(initialValue: .spotify)
-            _spotifyURI = State(initialValue: uri)
+        case .appleMusicTrack(let id, _):
+            _audioMode = State(initialValue: .appleMusic)
+            _appleMusicInput = State(initialValue: id)
         default:
             _audioMode = State(initialValue: .none)
         }
@@ -70,12 +70,14 @@ struct EditSongSheet: View {
                             }
                         }
 
-                        if audioMode == .spotify {
-                            TextField("Spotify URI  (spotify:track:…)", text: $spotifyURI)
+                        if audioMode == .appleMusic {
+                            TextField("Apple Music ID or share URL", text: $appleMusicInput)
                                 .textFieldStyle(.roundedBorder)
                                 .font(.caption.monospaced())
                                 .autocorrectionDisabled()
                                 .disableAutocapitalization()
+                            Text("Paste a song ID or share link from Apple Music")
+                                .font(.caption2).foregroundStyle(.tertiary)
                         }
                     }
 
@@ -136,10 +138,9 @@ struct EditSongSheet: View {
             if let url = pendingFileURL {
                 result.audioSource = store.copyAudioFile(from: url, profileID: profileID)
             }
-        case .spotify:
-            result.audioSource = spotifyURI.isEmpty
-                ? nil
-                : .spotifyTrack(uri: spotifyURI, trackName: edited.title)
+        case .appleMusic:
+            let id = AudioSource.extractAppleMusicID(from: appleMusicInput)
+            result.audioSource = id.isEmpty ? nil : .appleMusicTrack(id: id, trackName: edited.title)
         }
         onSave(result)
         dismiss()

@@ -7,7 +7,7 @@ final class AudioPlaybackManager: NSObject {
     var isPlaying: Bool = false
     var currentSource: AudioSource?
 
-    let spotify = SpotifyManager()
+    let musicKit = MusicKitManager()
 
     private var audioPlayer: AVAudioPlayer?
 
@@ -35,11 +35,11 @@ final class AudioPlaybackManager: NSObject {
         case .localFile:
             guard let url = source.resolvedLocalURL else { currentSource = nil; return }
             playLocalFile(url: url, startOffset: startOffset)
-        case .spotifyTrack(let uri, _):
-            spotify.playTrack(uri: uri, startOffset: startOffset)
+        case .appleMusicTrack(let id, _):
+            musicKit.playTrack(id: id, startOffset: startOffset)
             isPlaying = true
-        case .spotifyPlaylist(let uri, _):
-            spotify.playPlaylist(uri: uri)
+        case .appleMusicPlaylist(let id, _):
+            musicKit.playPlaylist(id: id)
             isPlaying = true
         }
     }
@@ -47,8 +47,8 @@ final class AudioPlaybackManager: NSObject {
     func stop() {
         audioPlayer?.stop()
         audioPlayer = nil
-        if case .spotifyTrack = currentSource { spotify.pause() }
-        else if case .spotifyPlaylist = currentSource { spotify.pause() }
+        if case .appleMusicTrack = currentSource { musicKit.stop() }
+        else if case .appleMusicPlaylist = currentSource { musicKit.stop() }
         isPlaying = false
         currentSource = nil
     }
