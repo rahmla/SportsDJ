@@ -62,17 +62,19 @@ struct SongItem: Codable, Identifiable, Hashable {
     var audioSource: AudioSource?
     var order: Int
     var startOffset: Double = 0
+    var playCount: Int = 0
 
     enum CodingKeys: String, CodingKey {
-        case id, title, audioSource, order, startOffset
+        case id, title, audioSource, order, startOffset, playCount
     }
 
-    init(id: UUID = UUID(), title: String, audioSource: AudioSource? = nil, order: Int, startOffset: Double = 0) {
+    init(id: UUID = UUID(), title: String, audioSource: AudioSource? = nil, order: Int, startOffset: Double = 0, playCount: Int = 0) {
         self.id = id
         self.title = title
         self.audioSource = audioSource
         self.order = order
         self.startOffset = startOffset
+        self.playCount = playCount
     }
 
     init(from decoder: Decoder) throws {
@@ -82,5 +84,6 @@ struct SongItem: Codable, Identifiable, Hashable {
         audioSource = try c.decodeIfPresent(AudioSource.self, forKey: .audioSource)
         order       = try c.decode(Int.self, forKey: .order)
         startOffset = try c.decodeIfPresent(Double.self, forKey: .startOffset) ?? 0
+        playCount   = try c.decodeIfPresent(Int.self, forKey: .playCount) ?? 0
     }
 }

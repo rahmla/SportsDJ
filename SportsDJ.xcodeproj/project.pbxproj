@@ -7,11 +7,26 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		BB7BF0DC2F76A58B0084BC6B /* SpotifyiOS in Frameworks */ = {isa = PBXBuildFile; platformFilter = ios; productRef = BB7BF0DB2F76A58B0084BC6B /* SpotifyiOS */; };
-		BB7BF1102F7732690084BC6B /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = BB7BF10F2F7732690084BC6B /* ZIPFoundation */; };
+		BBE121FB2F7DD293008BFEB0 /* MusicKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBE121F92F7DD27F008BFEB0 /* MusicKit.framework */; };
+		BBE121FC2F7DD293008BFEB0 /* MusicKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BBE121F92F7DD27F008BFEB0 /* MusicKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		BBE121FD2F7DD293008BFEB0 /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				BBE121FC2F7DD293008BFEB0 /* MusicKit.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		BBE121F92F7DD27F008BFEB0 /* MusicKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MusicKit.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/MusicKit.framework; sourceTree = DEVELOPER_DIR; };
 		BBE162E02F75D72C00E2B55E /* SportsDJ.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SportsDJ.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -41,18 +56,26 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BB7BF0DC2F76A58B0084BC6B /* SpotifyiOS in Frameworks */,
-				BB7BF1102F7732690084BC6B /* ZIPFoundation in Frameworks */,
+				BBE121FB2F7DD293008BFEB0 /* MusicKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		BBE121F82F7DD27F008BFEB0 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				BBE121F92F7DD27F008BFEB0 /* MusicKit.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		BBE162D72F75D72C00E2B55E = {
 			isa = PBXGroup;
 			children = (
 				BBE162E22F75D72C00E2B55E /* SportsDJ */,
+				BBE121F82F7DD27F008BFEB0 /* Frameworks */,
 				BBE162E12F75D72C00E2B55E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -75,6 +98,7 @@
 				BBE162DC2F75D72C00E2B55E /* Sources */,
 				BBE162DD2F75D72C00E2B55E /* Frameworks */,
 				BBE162DE2F75D72C00E2B55E /* Resources */,
+				BBE121FD2F7DD293008BFEB0 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -85,8 +109,6 @@
 			);
 			name = SportsDJ;
 			packageProductDependencies = (
-				BB7BF0DB2F76A58B0084BC6B /* SpotifyiOS */,
-				BB7BF10F2F7732690084BC6B /* ZIPFoundation */,
 			);
 			productName = SportsDJ;
 			productReference = BBE162E02F75D72C00E2B55E /* SportsDJ.app */;
@@ -117,8 +139,6 @@
 			mainGroup = BBE162D72F75D72C00E2B55E;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				BB7BF0DA2F76A58B0084BC6B /* XCRemoteSwiftPackageReference "ios-sdk" */,
-				BB7BF10E2F7732690084BC6B /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = BBE162E12F75D72C00E2B55E /* Products */;
@@ -413,38 +433,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		BB7BF0DA2F76A58B0084BC6B /* XCRemoteSwiftPackageReference "ios-sdk" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/spotify/ios-sdk";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
-			};
-		};
-		BB7BF10E2F7732690084BC6B /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/weichsel/ZIPFoundation";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.9.20;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		BB7BF0DB2F76A58B0084BC6B /* SpotifyiOS */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = BB7BF0DA2F76A58B0084BC6B /* XCRemoteSwiftPackageReference "ios-sdk" */;
-			productName = SpotifyiOS;
-		};
-		BB7BF10F2F7732690084BC6B /* ZIPFoundation */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = BB7BF10E2F7732690084BC6B /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
-			productName = ZIPFoundation;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = BBE162D82F75D72C00E2B55E /* Project object */;
 }

@@ -81,6 +81,7 @@ struct ContentView: View {
                         .fontWeight(.semibold)
                     } else {
                         Button {
+                            audio.stop()
                             mode = .edit
                         } label: {
                             Label("Edit", systemImage: "pencil")

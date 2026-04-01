@@ -16,6 +16,8 @@ final class MusicKitManager {
     var authorizationError: String?
 
     private let player = ApplicationMusicPlayer.shared
+    var onPlaybackFinished: (() -> Void)?
+    private var monitorTask: Task<Void, Never>?
 
     init() {
         Task { await refreshAuthorizationStatus() }
@@ -63,12 +65,28 @@ final class MusicKitManager {
                 player.queue = ApplicationMusicPlayer.Queue([song])
                 try await player.play()
                 if startOffset > 0 {
-                    // Small delay lets the player buffer before seeking
                     try await Task.sleep(for: .milliseconds(300))
                     player.playbackTime = startOffset
                 }
+                startMonitoring()
             } catch {
                 print("[MusicKit] playTrack error: \(error)")
+            }
+        }
+    }
+
+    private func startMonitoring() {
+        monitorTask?.cancel()
+        monitorTask = Task { [weak self] in
+            // Wait a moment for playback to start
+            try? await Task.sleep(for: .seconds(1))
+            while !Task.isCancelled {
+                let status = ApplicationMusicPlayer.shared.state.playbackStatus
+                if status == .stopped || status == .paused {
+                    await MainActor.run { self?.onPlaybackFinished?() }
+                    return
+                }
+                try? await Task.sleep(for: .milliseconds(500))
             }
         }
     }
@@ -102,6 +120,8 @@ final class MusicKitManager {
     }
 
     func stop() {
+        monitorTask?.cancel()
+        monitorTask = nil
         player.stop()
     }
 }
