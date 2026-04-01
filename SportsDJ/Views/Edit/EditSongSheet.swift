@@ -1,4 +1,5 @@
 import SwiftUI
+import MusicKit
 
 struct EditSongSheet: View {
     let profileID: UUID
@@ -7,6 +8,8 @@ struct EditSongSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var edited: SongItem
     @State private var appleMusicInput = ""
+    @State private var isFetchingTitle = false
+    @State private var fetchTask: Task<Void, Never>?
 
     init(song: SongItem, profileID: UUID, onSave: @escaping (SongItem) -> Void) {
         self.profileID = profileID
@@ -30,7 +33,12 @@ struct EditSongSheet: View {
 
                     // Title
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Title").font(.caption).foregroundStyle(.secondary)
+                        HStack {
+                            Text("Title").font(.caption).foregroundStyle(.secondary)
+                            if isFetchingTitle {
+                                ProgressView().controlSize(.mini)
+                            }
+                        }
                         TextField("Song title", text: $edited.title)
                             .textFieldStyle(.roundedBorder)
                     }
@@ -43,7 +51,10 @@ struct EditSongSheet: View {
                             .font(.caption.monospaced())
                             .autocorrectionDisabled()
                             .disableAutocapitalization()
-                        Text("Paste a song ID or share link from Apple Music")
+                            .onChange(of: appleMusicInput) { _, newValue in
+                                scheduleTrackFetch(input: newValue)
+                            }
+                        Text("Paste a song ID or share link — title will be filled automatically")
                             .font(.caption2).foregroundStyle(.tertiary)
                     }
 
@@ -88,6 +99,37 @@ struct EditSongSheet: View {
         }
         .frame(minWidth: 380, minHeight: 280)
     }
+
+    // MARK: - Track lookup
+
+    private func scheduleTrackFetch(input: String) {
+        fetchTask?.cancel()
+        let id = AudioSource.extractAppleMusicID(from: input)
+        guard !id.isEmpty else { return }
+        fetchTask = Task {
+            try? await Task.sleep(for: .milliseconds(600))
+            guard !Task.isCancelled else { return }
+            await fetchTrackTitle(id: id)
+        }
+    }
+
+    @MainActor
+    private func fetchTrackTitle(id: String) async {
+        isFetchingTitle = true
+        defer { isFetchingTitle = false }
+        do {
+            var request = MusicCatalogResourceRequest<Song>(matching: \.id, equalTo: MusicItemID(rawValue: id))
+            request.limit = 1
+            let response = try await request.response()
+            if let song = response.items.first {
+                edited.title = "\(song.title) – \(song.artistName)"
+            }
+        } catch {
+            // Silently ignore — user can type the title manually
+        }
+    }
+
+    // MARK: - Save
 
     private func saveAndDismiss() {
         var result = edited
