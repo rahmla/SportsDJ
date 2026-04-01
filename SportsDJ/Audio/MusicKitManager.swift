@@ -106,7 +106,7 @@ final class MusicKitManager {
                 }
                 playlist = try await playlist.with([.tracks])
                 if let tracks = playlist.tracks {
-                    player.queue = ApplicationMusicPlayer.Queue(tracks)
+                    player.queue = ApplicationMusicPlayer.Queue(tracks.compactMap { MusicPlayer.Queue.Entry($0) })
                     try await player.play()
                 }
             } catch {
