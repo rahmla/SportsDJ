@@ -8,22 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		BBE121FB2F7DD293008BFEB0 /* MusicKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBE121F92F7DD27F008BFEB0 /* MusicKit.framework */; };
-		BBE121FC2F7DD293008BFEB0 /* MusicKit.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = BBE121F92F7DD27F008BFEB0 /* MusicKit.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
-
-/* Begin PBXCopyFilesBuildPhase section */
-		BBE121FD2F7DD293008BFEB0 /* Embed Frameworks */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 10;
-			files = (
-				BBE121FC2F7DD293008BFEB0 /* MusicKit.framework in Embed Frameworks */,
-			);
-			name = "Embed Frameworks";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		BBE121F92F7DD27F008BFEB0 /* MusicKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MusicKit.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/MusicKit.framework; sourceTree = DEVELOPER_DIR; };
@@ -98,7 +83,6 @@
 				BBE162DC2F75D72C00E2B55E /* Sources */,
 				BBE162DD2F75D72C00E2B55E /* Frameworks */,
 				BBE162DE2F75D72C00E2B55E /* Resources */,
-				BBE121FD2F7DD293008BFEB0 /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
