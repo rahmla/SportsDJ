@@ -9,16 +9,21 @@ struct ContentView: View {
     @Environment(ProfileStore.self) private var store
     @Environment(AudioPlaybackManager.self) private var audio
     @State private var mode: AppMode = .performance
-    @State private var showProfilePicker = false
-    @State private var showOpenFile = false
-    @State private var showSaveAs = false
-    @State private var saveAsName = ""
-    @State private var savedFeedback = false
+    @State private var showHamburger = false
+    @State private var showNewEvent = false
+    @State private var showOpenEvent = false
+    @State private var showImport = false
+    @State private var newEventName = ""
+    @State private var newEventSport = ""
+
+    private var activeProfile: SportProfile? {
+        store.isEventClosed ? nil : store.selectedProfile
+    }
 
     var body: some View {
         NavigationStack {
             Group {
-                if let profile = store.selectedProfile {
+                if let profile = activeProfile {
                     switch mode {
                     case .performance:
                         PerformanceView(profile: profile)
@@ -29,97 +34,94 @@ struct ContentView: View {
                         ))
                     }
                 } else {
-                    ContentUnavailableView(
-                        "No Profile",
-                        systemImage: "music.note.list",
-                        description: Text("Tap the profile button to create one.")
-                    )
+                    emptyState
                 }
             }
-            .navigationTitle(store.selectedProfile?.name ?? "Sports Stream DJ")
-            .inlineNavigationTitle()
+            .navigationTitle(activeProfile?.name ?? "SportsDJ")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .automatic) {
-                    Button {
-                        showProfilePicker = true
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "music.note.list")
-                            Text(store.selectedProfile?.sport ?? "Profiles")
-                                .fontWeight(.semibold)
-                        }
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button { showHamburger = true } label: {
+                        Image(systemName: "line.3.horizontal")
+                            .imageScale(.large)
                     }
                 }
-
-                ToolbarItem(placement: .automatic) {
-                    Menu {
-                        Button("Open…") { showOpenFile = true }
-                        Divider()
-                        Button("Save") { explicitSave() }
-                            .disabled(store.selectedProfile == nil)
-                        Button("Save As…") {
-                            saveAsName = store.selectedProfile?.name ?? ""
-                            showSaveAs = true
-                        }
-                        .disabled(store.selectedProfile == nil)
-                    } label: {
-                        Label(savedFeedback ? "Saved!" : "File", systemImage: savedFeedback ? "checkmark" : "doc")
-                    }
-                }
-
-                ToolbarItem(placement: .primaryAction) {
-                    if mode == .edit {
-                        Button("Done") {
-                            audio.stop()
-                            mode = .performance
-                        }
-                        .fontWeight(.semibold)
-                    } else {
-                        Button {
-                            audio.stop()
-                            mode = .edit
-                        } label: {
-                            Label("Edit", systemImage: "pencil")
+                if activeProfile != nil {
+                    ToolbarItem(placement: .primaryAction) {
+                        if mode == .edit {
+                            Button("Done") {
+                                audio.stop()
+                                mode = .performance
+                            }
+                            .fontWeight(.semibold)
+                        } else {
+                            Button {
+                                audio.stop()
+                                mode = .edit
+                            } label: {
+                                Label("Edit", systemImage: "pencil")
+                            }
                         }
                     }
                 }
             }
         }
-        .sheet(isPresented: $showProfilePicker) {
-            ProfilePickerView()
+        .sheet(isPresented: $showHamburger) {
+            HamburgerMenuView(
+                onNewEvent: { showNewEvent = true },
+                onOpenEvent: { showOpenEvent = true },
+                onImport:   { showImport = true }
+            )
         }
-        // Wire macOS menu commands
-        .onReceive(NotificationCenter.default.publisher(for: .openProfile))   { _ in showOpenFile = true }
-        .onReceive(NotificationCenter.default.publisher(for: .saveProfile))   { _ in explicitSave() }
-        .onReceive(NotificationCenter.default.publisher(for: .saveAsProfile)) { _ in
-            saveAsName = store.selectedProfile?.name ?? ""
-            showSaveAs = true
+        .sheet(isPresented: $showOpenEvent) {
+            OpenEventView()
         }
-        // Open legacy .json profiles
-        .fileImporter(isPresented: $showOpenFile, allowedContentTypes: [.json]) { result in
+        .fileImporter(isPresented: $showImport, allowedContentTypes: [.json]) { result in
             guard let url = try? result.get() else { return }
             store.importProfile(from: url)
         }
-        // Save As
-        .alert("Save As", isPresented: $showSaveAs) {
-            TextField("Profile name", text: $saveAsName)
-            Button("Save") {
-                guard !saveAsName.isEmpty, let profile = store.selectedProfile else { return }
-                store.saveAs(profile: profile, newName: saveAsName)
+        .alert("New Event", isPresented: $showNewEvent) {
+            TextField("Event name", text: $newEventName)
+            TextField("Sport", text: $newEventSport)
+            Button("Create") {
+                guard !newEventName.isEmpty else { return }
+                _ = store.createNew(
+                    name: newEventName,
+                    sport: newEventSport.isEmpty ? newEventName : newEventSport
+                )
+                newEventName = ""; newEventSport = ""
             }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Enter a name for the new profile.")
+            Button("Cancel", role: .cancel) { newEventName = ""; newEventSport = "" }
         }
+        .onChange(of: store.selectedProfile?.id) { _, _ in mode = .performance }
+        .onChange(of: store.isEventClosed)       { _, _ in mode = .performance }
+        // Wire macOS menu commands
+        .onReceive(NotificationCenter.default.publisher(for: .openProfile))   { _ in showOpenEvent = true }
+        .onReceive(NotificationCenter.default.publisher(for: .saveProfile))   { _ in
+            if let p = activeProfile { store.save(profile: p) }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .saveAsProfile)) { _ in showNewEvent = true }
     }
 
-    private func explicitSave() {
-        guard let profile = store.selectedProfile else { return }
-        store.save(profile: profile)
-        savedFeedback = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-            savedFeedback = false
+    private var emptyState: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            Image(systemName: "music.note.list")
+                .font(.system(size: 64))
+                .foregroundStyle(.secondary)
+            Text("No event open")
+                .font(.title2).fontWeight(.semibold)
+            Text("Open an existing event or create a new one.")
+                .font(.subheadline).foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 40)
+            HStack(spacing: 16) {
+                Button("New event") { showNewEvent = true }
+                    .buttonStyle(.borderedProminent)
+                Button("Open event") { showOpenEvent = true }
+                    .buttonStyle(.bordered)
+            }
+            Spacer()
         }
     }
-
 }

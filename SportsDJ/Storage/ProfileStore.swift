@@ -5,8 +5,10 @@ import Observation
 final class ProfileStore {
     var profiles: [SportProfile] = []
     var selectedProfile: SportProfile?
+    var isEventClosed: Bool = false
 
     private let fileExtension = "sportsdj"
+    private let closedKey = "sportsdj.isEventClosed"
     private let encoder: JSONEncoder = {
         let e = JSONEncoder()
         e.outputFormatting = .prettyPrinted
@@ -15,6 +17,7 @@ final class ProfileStore {
     private let decoder = JSONDecoder()
 
     init() {
+        isEventClosed = UserDefaults.standard.bool(forKey: "sportsdj.isEventClosed")
         loadProfiles()
         if profiles.isEmpty {
             let volleyball = SportProfile.defaultVolleyball
@@ -23,6 +26,25 @@ final class ProfileStore {
         if selectedProfile == nil {
             selectedProfile = profiles.first
         }
+    }
+
+    func closeEvent() {
+        isEventClosed = true
+        UserDefaults.standard.set(true, forKey: closedKey)
+    }
+
+    func openEvent(_ profile: SportProfile) {
+        selectedProfile = profile
+        isEventClosed = false
+        UserDefaults.standard.set(false, forKey: closedKey)
+    }
+
+    func exportJSON(profile: SportProfile) -> URL? {
+        guard let data = try? encoder.encode(profile) else { return nil }
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(profile.name).json")
+        try? data.write(to: url)
+        return url
     }
 
     // MARK: - Storage directories
@@ -132,6 +154,8 @@ final class ProfileStore {
         profile.songs = []
         save(profile: profile)
         selectedProfile = profile
+        isEventClosed = false
+        UserDefaults.standard.set(false, forKey: closedKey)
         return profile
     }
 
@@ -146,6 +170,8 @@ final class ProfileStore {
         profile.id = UUID()
         save(profile: profile)
         selectedProfile = profile
+        isEventClosed = false
+        UserDefaults.standard.set(false, forKey: closedKey)
         return profile
     }
 
