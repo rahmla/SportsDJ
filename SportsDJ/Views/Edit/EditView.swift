@@ -1,15 +1,12 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 struct EditView: View {
     @Binding var profile: SportProfile
     @Environment(ProfileStore.self) private var store
-    @Environment(AudioPlaybackManager.self) private var audio
 
     @State private var selectedButton: OccasionButton?
     @State private var selectedSong: SongItem?
     @State private var showAddSong = false
-    @State private var newSongTitle = ""
 
     private var sortedSongs: [SongItem] {
         profile.songs.sorted { $0.order < $1.order }
@@ -31,35 +28,6 @@ struct EditView: View {
                     TextField("Sport", text: $profile.sport)
                         .multilineTextAlignment(.trailing)
                 }
-            }
-
-            // Apple Music
-            Section("Apple Music") {
-                HStack {
-                    Image(systemName: audio.musicKit.isAuthorized ? "checkmark.circle.fill" : "circle")
-                        .foregroundStyle(audio.musicKit.isAuthorized ? Color.green : Color.secondary)
-                    Text(audio.musicKit.isAuthorized ? "Authorized" : "Not authorized")
-                        .foregroundStyle(audio.musicKit.isAuthorized ? Color.primary : Color.secondary)
-                    Spacer()
-                    if !audio.musicKit.isAuthorized {
-                        Button("Authorize") {
-                            Task { await audio.musicKit.requestAuthorization() }
-                        }
-                    }
-                }
-                if let error = audio.musicKit.authorizationError {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
-            }
-
-            // Waiting for game
-            Section("Waiting for Game") {
-                WaitingForGameEditRow(source: Binding(
-                    get: { profile.waitingForGameSource },
-                    set: { profile.waitingForGameSource = $0 }
-                ), profileID: profile.id)
             }
 
             // Occasion buttons
@@ -99,8 +67,8 @@ struct EditView: View {
                                 .foregroundStyle(.secondary)
                                 .frame(width: 20)
 
-                            Text(song.title)
-                                .foregroundStyle(.primary)
+                            Text(song.title.isEmpty ? "Untitled" : song.title)
+                                .foregroundStyle(song.title.isEmpty ? .secondary : .primary)
 
                             Spacer()
 
@@ -145,14 +113,13 @@ struct EditView: View {
         .onChange(of: profile) { _, updated in
             store.save(profile: updated)
         }
-        .alert("Add Song", isPresented: $showAddSong) {
-            TextField("Song title", text: $newSongTitle)
-            Button("Add") {
-                guard !newSongTitle.isEmpty else { return }
-                profile.songs.append(SongItem(title: newSongTitle, order: profile.songs.count))
-                newSongTitle = ""
+        .sheet(isPresented: $showAddSong) {
+            EditSongSheet(
+                song: SongItem(title: "", order: profile.songs.count),
+                profileID: profile.id
+            ) { newSong in
+                profile.songs.append(newSong)
             }
-            Button("Cancel", role: .cancel) { newSongTitle = "" }
         }
         .sheet(item: $selectedButton) { button in
             EditOccasionButtonSheet(button: button, profileID: profile.id) { updated in
