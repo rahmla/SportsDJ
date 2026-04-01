@@ -11,11 +11,9 @@ struct ContentView: View {
     @State private var mode: AppMode = .performance
     @State private var showProfilePicker = false
     @State private var showOpenFile = false
-    @State private var showExport = false
     @State private var showSaveAs = false
     @State private var saveAsName = ""
     @State private var savedFeedback = false
-    @State private var zipExportDocument: ZipExportDocument?
 
     var body: some View {
         NavigationStack {
@@ -64,9 +62,6 @@ struct ContentView: View {
                             showSaveAs = true
                         }
                         .disabled(store.selectedProfile == nil)
-                        Divider()
-                        Button("Export…") { prepareExport() }
-                            .disabled(store.selectedProfile == nil)
                     } label: {
                         Label(savedFeedback ? "Saved!" : "File", systemImage: savedFeedback ? "checkmark" : "doc")
                     }
@@ -100,23 +95,11 @@ struct ContentView: View {
             saveAsName = store.selectedProfile?.name ?? ""
             showSaveAs = true
         }
-        .onReceive(NotificationCenter.default.publisher(for: .exportProfile)) { _ in prepareExport() }
-        // Open (accepts both .zip and legacy .json)
-        .fileImporter(isPresented: $showOpenFile, allowedContentTypes: [.zip, .json]) { result in
+        // Open legacy .json profiles
+        .fileImporter(isPresented: $showOpenFile, allowedContentTypes: [.json]) { result in
             guard let url = try? result.get() else { return }
-            if url.pathExtension.lowercased() == "zip" {
-                try? store.importFromZip(url: url)
-            } else {
-                store.importProfile(from: url)
-            }
+            store.importProfile(from: url)
         }
-        // Export ZIP
-        .fileExporter(
-            isPresented: $showExport,
-            document: zipExportDocument,
-            contentType: .zip,
-            defaultFilename: "\(store.selectedProfile?.name ?? "Profile").sportsdj.zip"
-        ) { _ in zipExportDocument = nil }
         // Save As
         .alert("Save As", isPresented: $showSaveAs) {
             TextField("Profile name", text: $saveAsName)
@@ -139,12 +122,4 @@ struct ContentView: View {
         }
     }
 
-    private func prepareExport() {
-        guard let profile = store.selectedProfile,
-              let zipURL = try? store.exportAsZip(profile: profile),
-              let data = try? Data(contentsOf: zipURL)
-        else { return }
-        zipExportDocument = ZipExportDocument(data: data)
-        showExport = true
-    }
 }
