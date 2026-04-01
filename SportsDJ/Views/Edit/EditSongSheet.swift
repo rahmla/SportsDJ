@@ -3,6 +3,7 @@ import MusicKit
 
 struct EditSongSheet: View {
     let profileID: UUID
+    let isAdding: Bool
     let onSave: (SongItem) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -11,9 +12,10 @@ struct EditSongSheet: View {
     @State private var isFetchingTitle = false
     @State private var fetchTask: Task<Void, Never>?
 
-    init(song: SongItem, profileID: UUID, onSave: @escaping (SongItem) -> Void) {
+    init(song: SongItem, profileID: UUID, isAdding: Bool = false, onSave: @escaping (SongItem) -> Void) {
         self.profileID = profileID
         self.onSave = onSave
+        self.isAdding = isAdding
         _edited = State(initialValue: song)
         if case .appleMusicTrack(let id, _) = song.audioSource {
             _appleMusicInput = State(initialValue: id)
@@ -31,21 +33,28 @@ struct EditSongSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
 
-                    // Title
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text("Title").font(.caption).foregroundStyle(.secondary)
-                            if isFetchingTitle {
-                                ProgressView().controlSize(.mini)
+                    // Title — only shown when editing an existing song
+                    if !isAdding {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Title").font(.caption).foregroundStyle(.secondary)
+                                if isFetchingTitle {
+                                    ProgressView().controlSize(.mini)
+                                }
                             }
+                            TextField("Song title", text: $edited.title)
+                                .textFieldStyle(.roundedBorder)
                         }
-                        TextField("Song title", text: $edited.title)
-                            .textFieldStyle(.roundedBorder)
                     }
 
                     // Apple Music
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("Apple Music").font(.caption).foregroundStyle(.secondary)
+                        HStack {
+                            Text("Apple Music").font(.caption).foregroundStyle(.secondary)
+                            if isAdding && isFetchingTitle {
+                                ProgressView().controlSize(.mini)
+                            }
+                        }
                         TextField("Song ID or share URL", text: $appleMusicInput)
                             .textFieldStyle(.roundedBorder)
                             .font(.caption.monospaced())
