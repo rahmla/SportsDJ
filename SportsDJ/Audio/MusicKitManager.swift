@@ -62,7 +62,7 @@ final class MusicKitManager {
                     print("[MusicKit] Track not found: \(id)")
                     return
                 }
-                player.queue = ApplicationMusicPlayer.Queue([song])
+                player.queue = ApplicationMusicPlayer.Queue(response.items, startingAt: song)
                 try await player.play()
                 if startOffset > 0 {
                     try await Task.sleep(for: .milliseconds(300))
