@@ -3,7 +3,6 @@ import SwiftUI
 struct HamburgerMenuView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(ProfileStore.self) private var store
-    @Environment(AudioPlaybackManager.self) private var audio
 
     let onNewEvent: () -> Void
     let onOpenEvent: () -> Void
@@ -66,22 +65,9 @@ struct HamburgerMenuView: View {
 
                 // MARK: Apple Music status
                 Section {
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(audio.musicKit.isAuthorized ? Color.green : Color.secondary)
-                            .frame(width: 10, height: 10)
-                        Text(audio.musicKit.isAuthorized ? "Apple Music connected" : "Apple Music not connected")
-                            .foregroundStyle(audio.musicKit.isAuthorized ? .primary : .secondary)
-                        if !audio.musicKit.isAuthorized {
-                            Spacer()
-                            Button("Connect") {
-                                Task { await audio.musicKit.requestAuthorization() }
-                            }
-                            .font(.caption)
-                            .buttonStyle(.bordered)
-                            .controlSize(.mini)
-                        }
-                    }
+                    Label("Apple Music", systemImage: "music.note")
+                        .foregroundStyle(.secondary)
+                        .font(.subheadline)
                 }
             }
             .navigationTitle("SportsDJ")

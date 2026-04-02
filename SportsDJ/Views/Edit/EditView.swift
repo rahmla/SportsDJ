@@ -116,8 +116,7 @@ struct EditView: View {
         .sheet(isPresented: $showAddSong) {
             EditSongSheet(
                 song: SongItem(title: "", order: profile.songs.count),
-                profileID: profile.id,
-                isAdding: true
+                profileID: profile.id
             ) { newSong in
                 profile.songs.append(newSong)
             }

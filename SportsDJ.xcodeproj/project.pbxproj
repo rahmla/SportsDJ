@@ -6,12 +6,7 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		BBE121FB2F7DD293008BFEB0 /* MusicKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = BBE121F92F7DD27F008BFEB0 /* MusicKit.framework */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXFileReference section */
-		BBE121F92F7DD27F008BFEB0 /* MusicKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = MusicKit.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.4.sdk/System/Library/Frameworks/MusicKit.framework; sourceTree = DEVELOPER_DIR; };
 		BBE162E02F75D72C00E2B55E /* SportsDJ.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SportsDJ.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -41,26 +36,16 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BBE121FB2F7DD293008BFEB0 /* MusicKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		BBE121F82F7DD27F008BFEB0 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				BBE121F92F7DD27F008BFEB0 /* MusicKit.framework */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
 		BBE162D72F75D72C00E2B55E = {
 			isa = PBXGroup;
 			children = (
 				BBE162E22F75D72C00E2B55E /* SportsDJ */,
-				BBE121F82F7DD27F008BFEB0 /* Frameworks */,
 				BBE162E12F75D72C00E2B55E /* Products */,
 			);
 			sourceTree = "<group>";
@@ -275,7 +260,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				AUTOMATION_APPLE_EVENTS = NO;
-				CODE_SIGN_ENTITLEMENTS = SportsDJ/SportsDJ.entitlements;
+
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = NFK9376XT5;
@@ -337,9 +322,9 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_ENTITLEMENTS = SportsDJ/SportsDJ.entitlements;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				AUTOMATION_APPLE_EVENTS = NO;
+
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = NFK9376XT5;

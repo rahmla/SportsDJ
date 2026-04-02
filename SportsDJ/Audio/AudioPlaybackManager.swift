@@ -1,34 +1,31 @@
 import Foundation
 import AVFoundation
+import MediaPlayer
 import Observation
 
 @Observable
 final class AudioPlaybackManager: NSObject {
     var isPlaying: Bool = false
     var currentSource: AudioSource?
-    var lastFinishedSource: AudioSource?   // set just before currentSource clears on natural end
+    var lastFinishedSource: AudioSource?
     var playbackStartDate: Date?
     var currentStartOffset: Double = 0
-
-    /// Called when a track ends naturally (not via stop()). Used to trigger auto-play next.
     var onTrackFinished: (() -> Void)?
 
-    let musicKit = MusicKitManager()
-
+    private let musicPlayer = MPMusicPlayerController.applicationQueuePlayer
     private var audioPlayer: AVAudioPlayer?
     private var manualStop = false
 
     override init() {
         super.init()
         configureAudioSession()
-        musicKit.onPlaybackFinished = { [weak self] in
-            guard let self, !self.manualStop else { return }
-            self.lastFinishedSource = self.currentSource
-            self.isPlaying = false
-            self.currentSource = nil
-            self.playbackStartDate = nil
-            self.onTrackFinished?()
-        }
+        musicPlayer.beginGeneratingPlaybackNotifications()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(musicPlaybackStateChanged),
+            name: .MPMusicPlayerControllerPlaybackStateDidChange,
+            object: musicPlayer
+        )
     }
 
     private func configureAudioSession() {
@@ -54,11 +51,9 @@ final class AudioPlaybackManager: NSObject {
             guard let url = source.resolvedLocalURL else { currentSource = nil; return }
             playLocalFile(url: url, startOffset: startOffset)
         case .appleMusicTrack(let id, _):
-            musicKit.playTrack(id: id, startOffset: startOffset)
-            isPlaying = true
+            playAppleMusicTrack(id: id, startOffset: startOffset)
         case .appleMusicPlaylist(let id, _):
-            musicKit.playPlaylist(id: id)
-            isPlaying = true
+            playAppleMusicTrack(id: id, startOffset: startOffset)
         }
     }
 
@@ -66,19 +61,54 @@ final class AudioPlaybackManager: NSObject {
         manualStop = true
         audioPlayer?.stop()
         audioPlayer = nil
-        if case .appleMusicTrack = currentSource { musicKit.stop() }
-        else if case .appleMusicPlaylist = currentSource { musicKit.stop() }
+        musicPlayer.stop()
         isPlaying = false
         currentSource = nil
         playbackStartDate = nil
+    }
+
+    // MARK: - Apple Music (MediaPlayer)
+
+    private func playAppleMusicTrack(id: String, startOffset: Double) {
+        let descriptor = MPMusicPlayerStoreQueueDescriptor(storeIDs: [id])
+        musicPlayer.setQueue(with: descriptor)
+        musicPlayer.prepareToPlay { [weak self] error in
+            guard let self else { return }
+            if let error {
+                print("[Audio] prepareToPlay error: \(error)")
+                DispatchQueue.main.async {
+                    self.currentSource = nil
+                    self.isPlaying = false
+                }
+                return
+            }
+            DispatchQueue.main.async {
+                if startOffset > 0 {
+                    self.musicPlayer.currentPlaybackTime = startOffset
+                }
+                self.musicPlayer.play()
+                self.isPlaying = true
+            }
+        }
+    }
+
+    @objc private func musicPlaybackStateChanged() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, !self.manualStop, self.isPlaying else { return }
+            guard self.musicPlayer.playbackState == .stopped else { return }
+            self.lastFinishedSource = self.currentSource
+            self.isPlaying = false
+            self.currentSource = nil
+            self.playbackStartDate = nil
+            self.onTrackFinished?()
+        }
     }
 
     // MARK: - Local file playback
 
     private func playLocalFile(url: URL, startOffset: Double = 0) {
         guard let player = try? AVAudioPlayer(contentsOf: url) else {
-            currentSource = nil
-            return
+            currentSource = nil; return
         }
         player.delegate = self
         audioPlayer = player
